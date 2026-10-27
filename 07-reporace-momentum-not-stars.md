@@ -1,7 +1,10 @@
 ---
 title: Momentum, not stars: ranking GitHub repos by acceleration
 published: false
+description: RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.
 tags: opensource, data, javascript, sqlite
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/07-reporace.png
 ---
 
 GitHub's trending page is a black box. A raw star count mostly measures age — a project with 100,000 stars accumulated them over years, and the number says nothing about whether anyone cares this week. The signal people actually want from "trending" is acceleration: which repositories are gaining stars *right now*. And GitHub's API cannot give you that, because historical star counts are simply not exposed — the old stargazer-timestamp endpoint returns 404 for ordinary tokens, and GraphQL's `stargazers` connection does not provide timestamps.

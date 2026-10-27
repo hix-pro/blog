@@ -1,7 +1,10 @@
 ---
 title: Remote-controlling OpenCode from Telegram
 published: false
+description: OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.
 tags: python, telegram, ai, automation
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/06-opencode-telegram.png
 ---
 
 Coding agents have a workflow problem: they work when you sit in front of them. You kick off a task, and then you wait — refreshing a terminal, checking whether the agent hit a permission prompt, re-reading output you cannot interact with. The moment you step away from the desk, the agent either stalls on an approval or finishes and sits idle until you come back.

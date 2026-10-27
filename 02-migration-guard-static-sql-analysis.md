@@ -1,7 +1,10 @@
 ---
 title: Static SQL migration analysis without a database
 published: false
+description: Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.
 tags: sql, postgresql, devops, rust
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/02-migration-guard.png
 ---
 
 The most expensive way to learn that your migration locks a table is to run it against production. `CREATE INDEX` on a large table blocks writes for the duration. `ALTER TABLE ... ALTER COLUMN ... TYPE` rewrites the table. A missing `WHERE` on a `DELETE` is self-explanatory. Every engineer eventually collects one of these scars, and the tools that try to prevent them usually want a database connection — a staging database to dry-run against, which you must keep fresh, seed, and pay for.

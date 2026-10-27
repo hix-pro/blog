@@ -1,7 +1,10 @@
 ---
 title: Catching env var drift before it breaks prod
 published: false
+description: EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.
 tags: devops, rust, ci, security
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/01-envaudit.png
 ---
 
 Every deploy script is a bet that your code and your configuration agree about the world. Code reads `DEPLOY_REGION`; the deployment environment sets `DEPLOY_REGION_V2` after someone renamed it in March. Locally, everything works because your `.env` has a value the example file never mentioned. In staging, the process starts and falls back to a default region three timezones away. None of this shows up in tests, because tests run with the developer's own environment. Env drift is invisible by construction — it only exists at the boundary between two machines that were configured by different people at different times.

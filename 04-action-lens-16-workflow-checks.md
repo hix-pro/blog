@@ -1,7 +1,10 @@
 ---
 title: 16 things to check in your GitHub Actions workflows
 published: false
+description: ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, and a 16-rule security review.
 tags: github, ci, security, devops
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/04-actionlens.png
 ---
 
 A GitHub Actions workflow file is deceptively small, which is exactly the problem. `needs:` hides the dependency order. `strategy.matrix` can turn three jobs into eighteen without anything looking wrong. `permissions:` is missing from most workflows, which means every job inherits whatever the repository default is. And a single `${{ github.event.pull_request.title }}` interpolated inside `run:` hands a pull request author a shell in your CI — with your secrets one `curl` away.

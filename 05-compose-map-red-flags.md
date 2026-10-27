@@ -1,7 +1,10 @@
 ---
 title: Docker Compose red flags before you deploy
 published: false
+description: ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.
 tags: docker, devops, security, webdev
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/05-composemap.png
 ---
 
 A Compose file is easy to write and hard to read back. `depends_on` hides startup order behind a YAML list. Long-form `ports:` syntax hides what is actually exposed to the host. And a literal database password in `environment:` looks exactly like every other line on the screen. Most Compose files get reviewed once — when they are written — and then quietly grow: a healthcheck forgotten, an image tag drifting to `latest`, a `docker.sock` mount added "temporarily" to make some tool work.

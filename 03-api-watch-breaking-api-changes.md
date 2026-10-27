@@ -1,7 +1,10 @@
 ---
 title: Breaking API changes you didn't know you shipped
 published: false
+description: API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.
 tags: api, openapi, ci, rust
+series: hix tools — local-first dev tools
+cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/03-api-watch.png
 ---
 
 A vendor ships a new version of their API. The changelog says "minor improvements." Your integration breaks on Tuesday because a field your code depends on moved from optional to required — technically announced, practically invisible. Or the mirror image: you are the vendor, a refactor quietly makes a response field optional, and three customers find out before you do. OpenAPI specs are supposed to prevent this by being a contract, but nothing enforces the contract between versions. The diff between two spec files is where the truth lives, and nobody wants to read a 400-line diff by hand.

@@ -2,6 +2,8 @@
 
 Seven posts, ready to publish after review. All have dev.to front matter with `published: false` — import and flip the flag when ready.
 
+Each post ships with: a `description` (meta/SEO summary), `tags`, `series: hix tools — local-first dev tools`, and a branded `cover_image` (2400×1260, per-tool accent color) served from this repo's `covers/` directory.
+
 ## The posts
 
 | # | File | Tool | Hook |
@@ -17,12 +19,12 @@ Seven posts, ready to publish after review. All have dev.to front matter with `p
 ## Import steps (dev.to)
 
 1. New post → paste the markdown body (or use the frontend GitHub repo import if configured).
-2. Move the front-matter title/tags into the dev.to editor fields.
-3. Add a cover image (1200×600). Candidate: each repo's docs screenshot for the browser tools; terminal screenshot for the CLIs.
-4. Preview → flip `published` in the front matter, or just publish from the editor.
-5. Canonical URL: leave empty (original content).
+2. Move the front-matter title/tags/description into the dev.to editor fields; the cover image is picked up from `cover_image` automatically on API/frontend import (or upload from `covers/`).
+3. Preview → flip `published` in the front matter, or just publish from the editor.
+4. Canonical URL: leave empty on the platform you publish first (original content).
+5. Cross-posting later (dev.to ↔ Hashnode, or Medium): set `canonical_url` on the copy to the URL of the post published first.
 
-Hashnode alternative: paste markdown, tags map 1:1, front matter ignored.
+Hashnode alternative: paste markdown, tags map 1:1, front matter otherwise ignored — set the subtitle from the post's `description` and upload the matching `covers/*.png` manually. Publish one platform first and canonicalize the other.
 
 ## Recommended posting order
 
@@ -48,7 +50,8 @@ Cadence: 2 per week. A single-burst dump underperforms and floods followers.
 
 ## Consistency notes (already handled)
 
-- All posts: dev.to front matter, `published: false`.
+- All posts: dev.to front matter, `published: false`, `description`, `series`, and a per-tool branded `cover_image`.
+- Covers live in [`covers/`](covers/) — one accent color per tool (green EnvAudit, amber Migration Guard, orange API Watch, blue ActionLens, cyan ComposeMap, Telegram blue, purple RepoRace).
 - Rust CLI posts reference `@v0.3.0` actions (current release, prebuilt-binary fast path) and mention prebuilt binaries in the install line.
 - Every post ends with the hix tools suite footer + cross-links to siblings.
 - Terminal output blocks are taken from committed README/fixture output (version banners updated to 0.3.0).
