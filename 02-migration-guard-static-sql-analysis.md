@@ -99,4 +99,4 @@ Static analysis cannot see your data volumes, your statement timeouts, or your r
 
 Migration Guard is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.
 
-It is part of the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If your pre-production checklist also includes environment drift, [EnvAudit](https://github.com/hix-pro/env-audit) covers it; if you consume third-party APIs, [API Watch](https://github.com/hix-pro/api-watch) catches breaking contract changes before they reach your code.
+It is part of the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If your pre-production checklist also includes environment drift, [EnvAudit](https://github.com/hix-pro/env-audit) covers it; if you consume third-party APIs, [API Watch](https://github.com/hix-pro/api-watch) catches breaking contract changes before they reach your code; if you review Terraform, [PlanGuard](https://github.com/hix-pro/planguard) reads the plan before apply.

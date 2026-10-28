@@ -1,6 +1,6 @@
 # Publishing checklist
 
-Seven posts, ready to publish after review. All have dev.to front matter with `published: false` — import and flip the flag when ready.
+Eight posts, ready to publish after review. All have dev.to front matter with `published: false` — import and flip the flag when ready.
 
 Each post ships with: a `description` (meta/SEO summary), `tags`, `series: hix tools — local-first dev tools`, and a branded `cover_image` (2400×1260, per-tool accent color) served from this repo's `covers/` directory.
 
@@ -15,6 +15,7 @@ Each post ships with: a `description` (meta/SEO summary), `tags`, `series: hix t
 | 05 | 05-compose-map-red-flags.md | ComposeMap | Docker Compose red flags before you deploy |
 | 06 | 06-opencode-telegram-remote-control.md | OpenCode Telegram | Remote-controlling OpenCode from Telegram |
 | 07 | 07-reporace-momentum-not-stars.md | RepoRace | Momentum, not stars |
+| 08 | 08-planguard-terraform-plan-review.md | PlanGuard | Reading Terraform plans before apply |
 
 ## Import steps (dev.to)
 
@@ -35,8 +36,9 @@ Browser tools first — the live demos convert best because readers try the tool
 3. **01 EnvAudit** — the "secret in .env" hook is the strongest CLI story
 4. **02 Migration Guard** — postgres audience, very shareable rule table
 5. **03 API Watch** — narrower (spec-driven teams) but deep
-6. **07 RepoRace** — fun/data post, good palate cleanser
-7. **06 OpenCode Telegram** — the AI-agent audience is loud on dev.to right now
+6. **08 PlanGuard** — Terraform teams; the "what a plan diff hides" hook lands with platform engineers
+7. **07 RepoRace** — fun/data post, good palate cleanser
+8. **06 OpenCode Telegram** — the AI-agent audience is loud on dev.to right now
 
 Cadence: 2 per week. A single-burst dump underperforms and floods followers.
 
@@ -44,15 +46,15 @@ Cadence: 2 per week. A single-burst dump underperforms and floods followers.
 
 - Add a "Featured in" link under each repo's README badges (needs the real URL first — that is why it is not done yet).
 - Repo social preview images: set in repo Settings → Social preview.
-- Show HN for 04 and 05 (browser demos do best on HN); r/devops for 01/02; r/docker for 05; r/SideProject for 07.
+- Show HN for 04 and 05 (browser demos do best on HN); r/devops for 01/02; r/docker for 05; r/Terraform for 08; r/SideProject for 07.
 - awesome-list submissions after 2-3 posts are live (awesome-github-actions, awesome-compose, awesome-postgres).
 - Cross-link: once 2+ posts are live, add "prev/next post" links at the bottom.
 
 ## Consistency notes (already handled)
 
 - All posts: dev.to front matter, `published: false`, `description`, `series`, and a per-tool branded `cover_image`.
-- Covers live in [`covers/`](covers/) — one accent color per tool (green EnvAudit, amber Migration Guard, orange API Watch, blue ActionLens, cyan ComposeMap, Telegram blue, purple RepoRace).
-- Rust CLI posts reference `@v0.3.1` actions (current release, prebuilt-binary fast path) and mention prebuilt binaries in the install line.
+- Covers live in [`covers/`](covers/) — one accent color per tool (green EnvAudit, amber Migration Guard, orange API Watch, blue ActionLens, cyan ComposeMap, Telegram blue, purple RepoRace, red PlanGuard).
+- Action posts use the tool's current release tag: `@v0.3.1` for EnvAudit, Migration Guard, and API Watch; `@v0.1.0` for PlanGuard. Revisit before publishing if a newer release ships.
 - Every post ends with the hix tools suite footer + cross-links to siblings.
 - Terminal output blocks are taken from committed README/fixture output (version banners updated to 0.3.1).
 - Voice: dry, practical, honest-limits section in every post. Limitations stated before a reader finds them.

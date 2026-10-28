@@ -19,15 +19,16 @@ OUT = ROOT / "docs"
 SITE_URL = "https://hix-pro.github.io/blog"
 SITE_TITLE = "hix tools — writing"
 SITE_DESCRIPTION = (
-    "Seven practical deep dives into the checks that normally depend on "
+    "Eight practical deep dives into the checks that normally depend on "
     "someone remembering: env drift, dangerous migrations, contract breaks, "
-    "workflow risk, Compose red flags, agent remote control, and star velocity "
-    "— plus the hix runner that ties the CLI tools together."
+    "workflow risk, Compose red flags, Terraform plan risk, agent remote "
+    "control, and star velocity — plus the hix runner that ties ten "
+    "local-first tools together."
 )
 PUBLISHED = datetime(2026, 10, 28, tzinfo=timezone.utc)
 
 # Reading order for the site: browser tools first, then the CLIs.
-ORDER = ["04", "05", "01", "02", "03", "07", "06"]
+ORDER = ["04", "05", "01", "02", "03", "08", "07", "06"]
 
 TOOLS = {
     "01": ("EnvAudit", "#3fb950"),
@@ -37,6 +38,7 @@ TOOLS = {
     "05": ("ComposeMap", "#39c5cf"),
     "06": ("OpenCode Telegram", "#2aabee"),
     "07": ("RepoRace", "#bc8cff"),
+    "08": ("PlanGuard", "#f85149"),
 }
 
 COVERS = {
@@ -47,6 +49,7 @@ COVERS = {
     "05": "05-composemap.png",
     "06": "06-opencode-telegram.png",
     "07": "07-reporace.png",
+    "08": "08-planguard.png",
 }
 
 MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
@@ -177,7 +180,7 @@ def build_index(posts: list[dict]) -> str:
   <section id="series" aria-labelledby="series-title">
     <div class="section-head">
       <h2 id="series-title">The series</h2>
-      <span>7 posts · 2026</span>
+      <span>{len(posts)} posts · 2026</span>
     </div>
     <div class="grid">
       {card(featured, "", featured=True)}

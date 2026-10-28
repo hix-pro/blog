@@ -2,7 +2,7 @@
 
 **Live site: [hix-pro.github.io/blog](https://hix-pro.github.io/blog/)**
 
-Seven practical posts on local-first developer tools that catch what CI misses: env drift, dangerous SQL migrations, breaking API contracts, GitHub Actions risk, Docker Compose red flags, remote-controlling a coding agent, and star velocity. The CLI tools can be run together with [`hix`](https://github.com/hix-pro/hix).
+Eight practical posts on local-first developer tools that catch what CI misses: env drift, dangerous SQL migrations, breaking API contracts, GitHub Actions risk, Docker Compose red flags, Terraform plan risk, remote-controlling a coding agent, and star velocity. The CLI tools can be run together with [`hix`](https://github.com/hix-pro/hix).
 
 | # | Post | Tool |
 |---|------|------|
@@ -13,6 +13,7 @@ Seven practical posts on local-first developer tools that catch what CI misses: 
 | 05 | Docker Compose red flags before you deploy | ComposeMap |
 | 06 | Remote-controlling OpenCode from Telegram | OpenCode Telegram |
 | 07 | Momentum, not stars: ranking GitHub repos by acceleration | RepoRace |
+| 08 | Terraform plans hide the risk. PlanGuard reads them. | PlanGuard |
 
 ## The site
 
@@ -27,7 +28,7 @@ Then commit `docs/` with the post change. The generator writes the index, post p
 
 ## Publishing
 
-`published: false` in the front matter is the **dev.to** flag, not the site flag — the site publishes all seven posts. Leave it false until each post is cross-posted, then flip it there; set the canonical URL to the post on this site.
+`published: false` in the front matter is the **dev.to** flag, not the site flag — the site publishes all eight posts. Leave it false until each post is cross-posted, then flip it there; set the canonical URL to the post on this site.
 
 The import and cross-posting steps are in [`00-PUBLISHING-CHECKLIST.md`](00-PUBLISHING-CHECKLIST.md).
 

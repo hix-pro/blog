@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terraform plans hide the risk. PlanGuard reads them. — hix tools — writing</title>
+  <meta name="description" content="PlanGuard reads terraform show -json output and flags the changes a plan diff treats equally — stateful destroys, public ingress, wildcard IAM, disabled encryption, and plaintext secrets.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/08-planguard-terraform-plan-review.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Terraform plans hide the risk. PlanGuard reads them. — hix tools — writing">
+  <meta property="og:description" content="PlanGuard reads terraform show -json output and flags the changes a plan diff treats equally — stateful destroys, public ingress, wildcard IAM, disabled encryption, and plaintext secrets.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/08-planguard-terraform-plan-review.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/08-planguard.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Terraform plans hide the risk. PlanGuard reads them. — hix tools — writing">
+  <meta name="twitter:description" content="PlanGuard reads terraform show -json output and flags the changes a plan diff treats equally — stateful destroys, public ingress, wildcard IAM, disabled encryption, and plaintext secrets.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/08-planguard.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/hix">hix</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #f85149">
+    <img src="../covers/08-planguard.png" alt="Cover for Terraform plans hide the risk. PlanGuard reads them." width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">PlanGuard · hix tools</p>
+    <h1>Terraform plans hide the risk. PlanGuard reads them.</h1>
+    <p class="lede">PlanGuard reads terraform show -json output and flags the changes a plan diff treats equally — stateful destroys, public ingress, wildcard IAM, disabled encryption, and plaintext secrets.</p>
+    <p class="post-meta">6 min read · terraform, infrastructure-as-code, devops, security</p>
+  </header>
+  <article class="prose">
+    <p>A Terraform plan is a diff against production, and a line diff treats every change equally. A tag update and a database replacement scroll past at the same speed. A security group rule that opens SSH to the world sits three lines below a renamed bucket. The plan is technically complete, and still easy to approve without seeing the one change that matters.</p>
+<p><a href="https://github.com/hix-pro/planguard">PlanGuard</a> reads the structured JSON behind <code>terraform plan</code> and classifies changes by what they can break. It does not need cloud credentials, a backend, or a Terraform binary at review time. It reads one file — the output of <code>terraform show -json</code> — and reports the findings a reviewer would ask about.</p>
+<h2>What a run looks like</h2>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>terraform<span class="w"> </span>plan<span class="w"> </span>-out<span class="o">=</span>tfplan
+<span class="gp">$ </span>terraform<span class="w"> </span>show<span class="w"> </span>-json<span class="w"> </span>tfplan<span class="w"> </span>&gt;<span class="w"> </span>plan.json
+<span class="gp">$ </span>planguard<span class="w"> </span>review<span class="w"> </span>plan.json
+<span class="go">PlanGuard · 0.1.0</span>
+<span class="go">Plan      plan.json</span>
+<span class="go">Tooling   Terraform 1.9.5 · format 1.2</span>
+<span class="go">Resources 10</span>
+<span class="go">Changes   9 changes (4 create, 2 update, 1 delete, 2 replace)</span>
+
+<span class="go">critical (5)</span>
+<span class="go">  destroy             aws_db_instance.main</span>
+<span class="go">    deleting a stateful resource destroys data that this plan cannot recover (removed from configuration)</span>
+<span class="go">  public-ingress      aws_security_group.web (ingress)</span>
+<span class="go">    tcp/22 is open to 0.0.0.0/0</span>
+<span class="go">  iam-policy          aws_iam_policy.deploy (policy)</span>
+<span class="go">    policy allows Action &quot;*&quot; on every resource</span>
+<span class="go">  public-access       aws_db_instance.analytics (publicly_accessible)</span>
+<span class="go">    publicly_accessible is enabled; the database accepts connections from the internet</span>
+<span class="go">  public-access       aws_s3_bucket_acl.assets (acl)</span>
+<span class="go">    bucket ACL is public-read; anyone can read or write objects in the bucket</span>
+
+<span class="go">error (2)</span>
+<span class="go">  replace             aws_ebs_volume.data (lifecycle)</span>
+<span class="go">    replaces a stateful resource; the old object and its data are destroyed (forced by availability_zone)</span>
+<span class="go">  encryption          aws_db_instance.analytics (storage_encrypted)</span>
+<span class="go">    database storage encryption is disabled</span>
+
+<span class="go">warning (4)</span>
+<span class="go">  replace             aws_instance.web (lifecycle)</span>
+<span class="go">    replaces this resource (delete and create) (tainted)</span>
+<span class="go">  drift               aws_security_group.legacy</span>
+<span class="go">    this resource changed outside Terraform before this plan</span>
+<span class="go">  deletion-protection aws_dynamodb_table.sessions</span>
+<span class="go">    deletion protection is being turned off</span>
+<span class="go">  deletion-protection aws_s3_bucket.logs (force_destroy)</span>
+<span class="go">    force_destroy is enabled, so the bucket can be deleted with its contents</span>
+
+<span class="go">info (1)</span>
+<span class="go">  secret              aws_db_instance.analytics (password)</span>
+<span class="go">    a plaintext secret-looking value is present in the plan</span>
+
+<span class="go">Summary: 10 resources · 9 changes (4 create, 2 update, 1 delete, 2 replace) · 12 findings (5 critical, 2 errors, 4 warnings, 1 info)</span>
+<span class="go">Result: report only (use --fail-on critical|error|warning|any to gate CI)</span>
+</code></pre></div>
+
+<p>The report never contains the secret value itself. It names the attribute path and says the value is present in the plan file.</p>
+<h2>The severity model</h2>
+<p>PlanGuard has four severities and a deliberately small rule set:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>Severity</th>
+<th>What it looks for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>destroy</code></td>
+<td>critical / warning</td>
+<td>A resource is deleted. Critical for stateful types, warning otherwise.</td>
+</tr>
+<tr>
+<td><code>replace</code></td>
+<td>error / warning</td>
+<td>A resource is deleted and recreated. Error for stateful types, warning otherwise.</td>
+</tr>
+<tr>
+<td><code>drift</code></td>
+<td>warning</td>
+<td>A managed resource changed outside Terraform before this plan.</td>
+</tr>
+<tr>
+<td><code>public-ingress</code></td>
+<td>critical / error / warning</td>
+<td>A new internet-facing rule. Critical on sensitive ports or all traffic, error on other TCP/UDP ports, warning on other protocols.</td>
+</tr>
+<tr>
+<td><code>iam-policy</code></td>
+<td>critical / error / warning / info</td>
+<td>Public principals, <code>Action: "*"</code>, service wildcards, and GCP owner/editor or public bindings. Conditions reduce severity.</td>
+</tr>
+<tr>
+<td><code>public-access</code></td>
+<td>critical / error / warning</td>
+<td>Public bucket ACLs and containers, public databases, disabled public-access blocks, and public storage transitions.</td>
+</tr>
+<tr>
+<td><code>encryption</code></td>
+<td>error / warning</td>
+<td>Encryption disabled on databases, volumes, file systems, caches, and clusters.</td>
+</tr>
+<tr>
+<td><code>deletion-protection</code></td>
+<td>warning</td>
+<td>Deletion protection turned off, or <code>force_destroy</code> enabled on a bucket.</td>
+</tr>
+<tr>
+<td><code>secret</code></td>
+<td>info</td>
+<td>A plaintext secret-looking value is present in the plan.</td>
+</tr>
+<tr>
+<td><code>plan-errored</code></td>
+<td>critical</td>
+<td>The plan reports an error.</td>
+</tr>
+<tr>
+<td><code>plan-incomplete</code></td>
+<td>warning</td>
+<td>The plan is incomplete and needs another round.</td>
+</tr>
+</tbody>
+</table>
+<p>Critical means "this plan can destroy data or expose a sensitive service to the internet." Error means "this is a real operability or security regression, but not necessarily unrecoverable." Warning means "a reviewer should see this; it may be intentional." Info is context, not a failure.</p>
+<p>The stateful classification is the part that changes the most decisions. Managed databases, DynamoDB tables, EBS and EFS volumes, S3 and GCS buckets, Azure storage accounts and disks, SQS/SNS queues, KMS keys, secrets, and persistent volumes all count. So do types ending in <code>*_snapshot</code>, <code>*_volume</code>, <code>*_filesystem</code>, and <code>*_secret_version</code>. Destroying a stateless web server is usually a replace; destroying the database behind it is data loss.</p>
+<h2>Report first, gate second</h2>
+<p>The default is report-only. <code>planguard review plan.json</code> prints the report and exits <code>0</code>, even when it finds a critical issue. Gating is explicit:</p>
+<div class="highlight"><pre><span></span><code>planguard<span class="w"> </span>review<span class="w"> </span>plan.json<span class="w"> </span>--fail-on<span class="w"> </span>error
+</code></pre></div>
+
+<p><code>--fail-on</code> is inclusive. <code>error</code> fails on critical and error findings; <code>warning</code> adds warnings; <code>any</code> includes informational findings. Exit codes follow the family convention: <code>0</code> for success or report-only, <code>1</code> for usage, I/O, or plan parse errors, <code>2</code> when the threshold is met. The distinction matters in CI: a malformed plan is a tooling failure, not a security finding, and the job should say so.</p>
+<p>Findings can be filtered with <code>--ignore</code>. It accepts an exact resource address, a resource type, or a finding kind, and the flag can be repeated:</p>
+<div class="highlight"><pre><span></span><code>planguard<span class="w"> </span>review<span class="w"> </span>plan.json<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="w"> </span>aws_db_instance.legacy<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="w"> </span>aws_s3_bucket<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--ignore<span class="w"> </span>secret
+</code></pre></div>
+
+<p>Ignored patterns are listed in the report, so the decision stays visible. Ignores filter findings, not resources; change counts still describe the whole plan. Prefer the narrowest pattern that works: an address, then a type, then a kind.</p>
+<h2>In CI</h2>
+<p>Generate the plan, convert it to JSON, then let the action upload SARIF to code scanning:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Terraform plan review</span>
+
+<span class="nt">on</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span>
+
+<span class="nt">permissions</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">contents</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">read</span>
+<span class="w">  </span><span class="nt">security-events</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">write</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">plan</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v7</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hashicorp/setup-terraform@v3</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Terraform plan</span>
+<span class="w">        </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">terraform init</span>
+<span class="w">          </span><span class="no">terraform plan -out=tfplan</span>
+<span class="w">          </span><span class="no">terraform show -json tfplan &gt; plan.json</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/planguard@v0.1.0</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">plan</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">plan.json</span>
+<span class="w">          </span><span class="nt">fail-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">error</span>
+</code></pre></div>
+
+<p>The action needs cloud credentials because Terraform needs them to create the plan. PlanGuard itself only reads <code>plan.json</code> on the runner. SARIF maps critical and error findings to <code>error</code>, warnings to <code>warning</code>, and informational findings to <code>note</code>; each result points at the plan file. Stdin input is reported as <code>terraform-plan.json</code>, and absolute plan paths use the basename.</p>
+<p>For a local run or a non-GitHub CI system, the CLI is the same tool:</p>
+<div class="highlight"><pre><span></span><code>cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"> </span>https://github.com/hix-pro/planguard
+planguard<span class="w"> </span>review<span class="w"> </span>plan.json<span class="w"> </span>--markdown<span class="w"> </span>--fail-on<span class="w"> </span>error
+</code></pre></div>
+
+<p><code>--json</code>, <code>--markdown</code>, and <code>--sarif</code> are mutually exclusive. JSON is stable within a major version (<code>schema_version: 1</code>) and findings are ordered by severity, kind, resource, and attribute, so diffs between runs stay small.</p>
+<h2>Run it with the suite</h2>
+<p>PlanGuard is part of <a href="https://github.com/hix-pro/hix"><code>hix</code></a>, the runner that finds the tools you have installed and applies a check plan:</p>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>git+https://github.com/hix-pro/hix.git
+hix<span class="w"> </span>check
+</code></pre></div>
+
+<p>If <code>.planguard/plan.json</code>, <code>plan.json</code>, or <code>tfplan.json</code> exists, <code>hix</code> runs <code>planguard review &lt;plan&gt; --json --fail-on error</code> automatically. Critical and error findings fail the suite; warnings stay visible in the severity breakdown. The runner never installs anything or phones home.</p>
+<h2>What it will not do</h2>
+<p>PlanGuard supports Terraform plan JSON format 1.x. A binary plan file must be converted with <code>terraform show -json</code>; the tool will tell you that instead of guessing. It analyzes the plan, not the configuration or provider schema — stateful detection and secret detection are name-based heuristics, not a proof about your data. Unknown values, variables, and provider defaults are whatever the plan contains; PlanGuard does not resolve them. It is a review aid, not a policy engine, and it does not replace provider-specific security controls or a human reading the plan.</p>
+<p>The rules are conservative on purpose. They are designed to stay quiet on routine churn and to surface the changes a reviewer would ask about. When a heuristic is wrong, <code>--ignore</code> is the escape hatch, and the ignore stays in the report.</p>
+<p>PlanGuard is MIT-licensed, has no runtime dependencies, and ships prebuilt binaries for Linux x86_64, macOS Apple Silicon, and Windows x86_64 with SHA-256 checksums. The test suite covers the analyzer, each check family, all four output formats, thresholds, ignores, stdin, and invalid input.</p>
+<p>It is one of ten tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. Siblings: <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> for environment drift, <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> for dangerous SQL migrations, <a href="https://github.com/hix-pro/api-watch">API Watch</a> for API contract changes, <a href="https://github.com/hix-pro/action-lens">ActionLens</a> for workflow review, <a href="https://github.com/hix-pro/compose-map">ComposeMap</a> for Compose files, <a href="https://github.com/hix-pro/locklens">LockLens</a> for lockfile drift, <a href="https://github.com/hix-pro/typeshift">TypeShift</a> for TypeScript semver, <a href="https://github.com/hix-pro/reporace">RepoRace</a> for repository momentum, and <a href="https://github.com/hix-pro/opencode-telegram">OpenCode Telegram</a> for running coding agents from your phone.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="03-api-watch-breaking-api-changes.html"><span class="label">Previous</span>Breaking API changes you didn&#x27;t know you shipped</a><a class="next" href="07-reporace-momentum-not-stars.html"><span class="label">Next</span>Momentum, not stars: ranking GitHub repos by acceleration</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>
