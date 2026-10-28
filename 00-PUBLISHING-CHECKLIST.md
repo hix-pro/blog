@@ -52,7 +52,7 @@ Cadence: 2 per week. A single-burst dump underperforms and floods followers.
 
 - All posts: dev.to front matter, `published: false`, `description`, `series`, and a per-tool branded `cover_image`.
 - Covers live in [`covers/`](covers/) — one accent color per tool (green EnvAudit, amber Migration Guard, orange API Watch, blue ActionLens, cyan ComposeMap, Telegram blue, purple RepoRace).
-- Rust CLI posts reference `@v0.3.0` actions (current release, prebuilt-binary fast path) and mention prebuilt binaries in the install line.
+- Rust CLI posts reference `@v0.3.1` actions (current release, prebuilt-binary fast path) and mention prebuilt binaries in the install line.
 - Every post ends with the hix tools suite footer + cross-links to siblings.
-- Terminal output blocks are taken from committed README/fixture output (version banners updated to 0.3.0).
+- Terminal output blocks are taken from committed README/fixture output (version banners updated to 0.3.1).
 - Voice: dry, practical, honest-limits section in every post. Limitations stated before a reader finds them.

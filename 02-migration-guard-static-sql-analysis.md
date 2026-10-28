@@ -15,7 +15,7 @@ The most expensive way to learn that your migration locks a table is to run it a
 
 ```console
 $ migration-guard check examples/risky.sql --fail-on risky
-migration-guard 0.3.0  ·  postgres  ·  1 file
+migration-guard 0.3.1  ·  postgres  ·  1 file
 
 examples/risky.sql  (8 statements)
   risky        MG005  line 2
@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: hix-pro/migration-guard@v0.3.0
+      - uses: hix-pro/migration-guard@v0.3.1
         with:
           paths: migrations
           fail-on: destructive

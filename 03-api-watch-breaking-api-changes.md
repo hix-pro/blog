@@ -61,7 +61,7 @@ The database is the state, so it has to survive between runs:
   with:
     path: ~/.apiwatch
     key: apiwatch-${{ runner.os }}
-- uses: hix-pro/api-watch@v0.3.0
+- uses: hix-pro/api-watch@v0.3.1
   with:
     spec: https://internal.example.com/openapi.json
     check-args: --fail-on-breaking

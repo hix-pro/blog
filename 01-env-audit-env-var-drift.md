@@ -18,7 +18,7 @@ The repo ships a deliberately broken fixture project, so the output is reproduci
 ```console
 $ cd examples/fixture-project
 $ envaudit scan .
-EnvAudit · 0.3.0
+EnvAudit · 0.3.1
 Scanned 7 files under .
 
 critical (1)
@@ -62,7 +62,7 @@ By default the tool is a report: it prints findings and exits `0`. The `--fail-o
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: hix-pro/env-audit@v0.3.0
+- uses: hix-pro/env-audit@v0.3.1
   with:
     fail-on: any
 ```
