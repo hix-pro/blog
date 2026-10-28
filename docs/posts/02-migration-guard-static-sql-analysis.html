@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Static SQL migration analysis without a database — hix tools — writing</title>
+  <meta name="description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Static SQL migration analysis without a database — hix tools — writing">
+  <meta property="og:description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/02-migration-guard.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Static SQL migration analysis without a database — hix tools — writing">
+  <meta name="twitter:description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/02-migration-guard.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #d29922">
+    <img src="../covers/02-migration-guard.png" alt="Cover for Static SQL migration analysis without a database" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">Migration Guard · hix tools</p>
+    <h1>Static SQL migration analysis without a database</h1>
+    <p class="lede">Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</p>
+    <p class="post-meta">4 min read · sql, postgresql, devops, rust</p>
+  </header>
+  <article class="prose">
+    <p>The most expensive way to learn that your migration locks a table is to run it against production. <code>CREATE INDEX</code> on a large table blocks writes for the duration. <code>ALTER TABLE ... ALTER COLUMN ... TYPE</code> rewrites the table. A missing <code>WHERE</code> on a <code>DELETE</code> is self-explanatory. Every engineer eventually collects one of these scars, and the tools that try to prevent them usually want a database connection — a staging database to dry-run against, which you must keep fresh, seed, and pay for.</p>
+<p><a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> takes a different position: parse the SQL, apply rules, print findings. No connection string, no credentials, no database. It reads migration files the same way the database will — statement by statement — and reasons about them statically. That makes it fast enough to run on every pull request, and safe enough to point at anything.</p>
+<h2>What a run looks like</h2>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>migration-guard<span class="w"> </span>check<span class="w"> </span>examples/risky.sql<span class="w"> </span>--fail-on<span class="w"> </span>risky
+<span class="go">migration-guard 0.3.1  ·  postgres  ·  1 file</span>
+
+<span class="go">examples/risky.sql  (8 statements)</span>
+<span class="go">  risky        MG005  line 2</span>
+<span class="go">      ALTER TABLE accounts ADD COLUMN last_seen_at timestamptz NOT NULL;</span>
+<span class="go">      Why: Adding NOT NULL column `last_seen_at` to `accounts` without a DEFAULT can fail on existing rows or force a table rewrite.</span>
+<span class="go">      Fix: Add the column as nullable, backfill it, then set NOT NULL. Alternatively provide a DEFAULT if one is appropriate.</span>
+
+<span class="go">  risky        MG004  line 4</span>
+<span class="go">      ALTER TABLE accounts ALTER COLUMN email TYPE citext;</span>
+<span class="go">      Why: Changing `accounts.email` to `citext` can rewrite the table and block reads and writes while it runs.</span>
+<span class="go">      Fix: Create a new column with the target type, backfill in batches, then swap columns under a short lock, or use a maintenance window.</span>
+
+<span class="go">  risky        MG007  line 6</span>
+<span class="go">      CREATE INDEX idx_accounts_email ON accounts (email);</span>
+<span class="go">      Why: Building an index on `accounts` without CONCURRENTLY blocks writes for the duration of the build.</span>
+<span class="go">      Fix: Use CREATE INDEX CONCURRENTLY outside a transaction. If the build fails, drop the invalid index before retrying.</span>
+
+<span class="go">  risky        MG009  line 8</span>
+<span class="go">      ALTER TABLE orders ADD CONSTRAINT orders_account_fk FOREIGN KEY (account_id) REFERENCES accounts (id);</span>
+<span class="go">      Why: Adding a foreign key from `orders` to `accounts` validates every existing row while holding locks.</span>
+<span class="go">      Fix: Add the constraint with NOT VALID, then run ALTER TABLE ... VALIDATE CONSTRAINT as a separate step.</span>
+
+<span class="go">  warning      MG010  line 12</span>
+<span class="go">      ALTER TABLE accounts RENAME COLUMN email TO email_address;</span>
+<span class="go">      Why: Renaming `accounts.email` to `email_address` breaks queries, views, and clients that still use the old name.</span>
+<span class="go">      Fix: Use expand/contract: add the new name, update readers and writers, then remove the old name in a later release.</span>
+
+<span class="go">  warning      MG011  line 15</span>
+<span class="go">      CREATE INDEX CONCURRENTLY idx_accounts_display_name ON accounts (display_name);</span>
+<span class="go">      Why: PostgreSQL cannot run CREATE INDEX CONCURRENTLY inside a transaction block; this statement will fail at execution time.</span>
+<span class="go">      Fix: Move the concurrent index build outside BEGIN/COMMIT and make it its own migration step.</span>
+
+<span class="go">Summary: 1 file, 8 statements, 6 findings (0 destructive, 4 risky, 2 warnings)</span>
+</code></pre></div>
+
+<p>Each finding carries a <code>Why</code> and a <code>Fix</code>. The fixes are the standard operational playbooks — nullable-then-backfill, <code>NOT VALID</code> then <code>VALIDATE CONSTRAINT</code>, expand/contract renames — written out where the person touching the migration will actually see them.</p>
+<h2>The rules</h2>
+<p>Thirteen rules, three severities. <code>destructive</code> is data loss or unbounded locking: <code>DROP TABLE</code>, <code>TRUNCATE</code>, <code>ALTER TABLE ... DROP COLUMN</code> (MG001), <code>DELETE</code> or <code>UPDATE</code> without a <code>WHERE</code> (MG002, MG003). <code>risky</code> is likely downtime: column type changes (MG004), <code>NOT NULL</code> without a <code>DEFAULT</code> (MG005, MG006), PostgreSQL index builds without <code>CONCURRENTLY</code> (MG007, MG008), foreign keys validated in-place (MG009), <code>VACUUM FULL</code> and <code>CLUSTER</code> (MG012). <code>warning</code> is "works, but check intent": renames that break clients (MG010), <code>CONCURRENTLY</code> inside a transaction block where it will simply fail at execution time (MG011), and <code>DO</code> blocks or statement types outside the known rule set (MG013).</p>
+<p>Dialect awareness keeps the advice honest. The PostgreSQL-only rules — concurrency, <code>NOT VALID</code>, <code>CLUSTER</code> — do not fire for MySQL, SQLite, or <code>--dialect generic</code>, so you never get told to add <code>CONCURRENTLY</code> to a MySQL index. Meanwhile MySQL's <code>MODIFY COLUMN</code> type changes are caught by MG004's dialect-specific variant. Statement splitting handles the nasty parts — dollar-quoted bodies, nested block comments, MySQL backticks — so a semicolon inside a string does not fabricate a statement boundary.</p>
+<h2>Exit codes and CI</h2>
+<p>The convention is shared across the tool family: <code>0</code> is clean (or report-only), <code>1</code> is an error such as a parse failure, <code>2</code> means the <code>--fail-on</code> threshold was met. Output comes in text, <code>--format json</code> (stable, <code>schema_version: 1</code>, with a <code>threshold_met</code> field so you do not re-implement severity ordering), and <code>--format markdown</code> for pull request comments.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">on</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">pull_request</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">paths</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;migrations/**&quot;</span>
+
+<span class="nt">jobs</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">check</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
+<span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/migration-guard@v0.3.1</span>
+<span class="w">        </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">paths</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">migrations</span>
+<span class="w">          </span><span class="nt">fail-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">destructive</span>
+</code></pre></div>
+
+<p>The <code>paths:</code> filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action fetches a prebuilt binary and falls back to compiling if needed.</p>
+<h2>What it will not do</h2>
+<p>Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a <code>CREATE INDEX</code> that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether <code>CONCURRENTLY</code> will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.</p>
+<p>Migration Guard is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.</p>
+<p>It is part of the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If your pre-production checklist also includes environment drift, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> covers it; if you consume third-party APIs, <a href="https://github.com/hix-pro/api-watch">API Watch</a> catches breaking contract changes before they reach your code.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="01-env-audit-env-var-drift.html"><span class="label">Previous</span>Catching env var drift before it breaks prod</a><a class="next" href="03-api-watch-breaking-api-changes.html"><span class="label">Next</span>Breaking API changes you didn&#x27;t know you shipped</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

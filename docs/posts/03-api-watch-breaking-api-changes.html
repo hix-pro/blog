@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Breaking API changes you didn&#x27;t know you shipped — hix tools — writing</title>
+  <meta name="description" content="API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/03-api-watch-breaking-api-changes.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Breaking API changes you didn&#x27;t know you shipped — hix tools — writing">
+  <meta property="og:description" content="API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/03-api-watch-breaking-api-changes.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/03-api-watch.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Breaking API changes you didn&#x27;t know you shipped — hix tools — writing">
+  <meta name="twitter:description" content="API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/03-api-watch.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #f0883e">
+    <img src="../covers/03-api-watch.png" alt="Cover for Breaking API changes you didn&#x27;t know you shipped" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">API Watch · hix tools</p>
+    <h1>Breaking API changes you didn&#x27;t know you shipped</h1>
+    <p class="lede">API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.</p>
+    <p class="post-meta">4 min read · api, openapi, ci, rust</p>
+  </header>
+  <article class="prose">
+    <p>A vendor ships a new version of their API. The changelog says "minor improvements." Your integration breaks on Tuesday because a field your code depends on moved from optional to required — technically announced, practically invisible. Or the mirror image: you are the vendor, a refactor quietly makes a response field optional, and three customers find out before you do. OpenAPI specs are supposed to prevent this by being a contract, but nothing enforces the contract between versions. The diff between two spec files is where the truth lives, and nobody wants to read a 400-line diff by hand.</p>
+<p><a href="https://github.com/hix-pro/api-watch">API Watch</a> is a Rust CLI that does it for you. It flattens a spec — OpenAPI 3.x, Swagger 2.0, or plain JSON — into a set of contract facts, stores a baseline in a local SQLite database, and classifies every subsequent fetch against that baseline. The classifier is directional: it knows that removing a request parameter is breaking while adding one is compatible, that a response field becoming optional is breaking while a request field becoming optional is not, and that enum values move in opposite directions on each side of the wire.</p>
+<h2>What a run looks like</h2>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>apiwatch<span class="w"> </span>add<span class="w"> </span>https://petstore3.swagger.io/api/v3/openapi.json<span class="w"> </span>--name<span class="w"> </span>petstore
+<span class="go">Added petstore</span>
+<span class="go">  URL       https://petstore3.swagger.io/api/v3/openapi.json</span>
+
+<span class="go">Next: apiwatch check petstore</span>
+
+<span class="gp">$ </span>apiwatch<span class="w"> </span>check<span class="w"> </span>petstore
+<span class="go">petstore · OpenAPI · Swagger Petstore - OpenAPI 3.0 1.0.28</span>
+<span class="go">baseline saved · 515 facts · 19 endpoints · HTTP 200</span>
+
+<span class="gp">$ </span>apiwatch<span class="w"> </span>check<span class="w"> </span>petstore
+<span class="go">petstore · OpenAPI · Swagger Petstore - OpenAPI 3.0 1.0.28</span>
+<span class="go">no contract changes · 515 facts · 19 endpoints · HTTP 304</span>
+<span class="go">  not modified (ETag matched)</span>
+</code></pre></div>
+
+<p>The ETag handling matters for the monitoring case: point it at a spec that changes rarely, run it on a schedule, and unchanged days cost one conditional request. When the spec does change, <code>check --fail-on-breaking</code> exits <code>2</code> if any classified-breaking change was introduced, <code>0</code> on clean or compatible-only changes, and <code>1</code> on errors — including the honest cold-start case where the database is empty and there is nothing to compare yet (<code>no targets yet</code>).</p>
+<h2>The direction is the hard part</h2>
+<p>A tool that treats every change as breaking is unusable — endpoints grow legitimately. The interesting rules are asymmetric:</p>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Classification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>New required request parameter</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>New optional request parameter</td>
+<td>Compatible</td>
+</tr>
+<tr>
+<td>Response property removed</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Response property added</td>
+<td>Compatible</td>
+</tr>
+<tr>
+<td>Request enum value removed</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Response enum value added</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Field type changes (<code>string</code> → <code>integer</code>)</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Format added to a request field (<code>string</code> → <code>uuid</code>)</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Format removed from a response field</td>
+<td><strong>Breaking</strong></td>
+</tr>
+<tr>
+<td>Descriptions, examples, summaries, tags</td>
+<td>Ignored</td>
+</tr>
+</tbody>
+</table>
+<p>Note the enum rows: a request may lose enum values only in a breaking release (your callers might send them), but a response may gain enum values only in a breaking release (your parsers might not know them). Same for <code>format</code> — tightening a request format breaks callers with looser data; loosening a response format breaks parsers expecting the strict one. Getting these backwards is exactly the kind of bug that survives a code review.</p>
+<h2>CI with a persistent baseline</h2>
+<p>The database is the state, so it has to survive between runs:</p>
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/cache@v4</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">~/.apiwatch</span>
+<span class="w">    </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apiwatch-${{ runner.os }}</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/api-watch@v0.3.1</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">spec</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://internal.example.com/openapi.json</span>
+<span class="w">    </span><span class="nt">check-args</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">--fail-on-breaking</span>
+</code></pre></div>
+
+<p>Passing <code>spec</code> makes cache eviction self-healing: on a warm cache the target already exists and re-adding is a no-op; on a cold cache it restores the tracking entry so the first check records a fresh baseline and exits <code>0</code>. The action downloads a prebuilt binary and falls back to compiling. Specs behind auth use static headers (no OAuth flows — see limits below).</p>
+<h2>What it will not do</h2>
+<p>Static headers only — no OAuth2 flows, no mTLS. External <code>$ref</code>s are not fetched (unresolved ones are counted and surfaced). <code>allOf</code>/<code>oneOf</code>/<code>anyOf</code> are traversed with required-field merging, but composition is not fully proven. And the deepest limit, stated without apology: <strong>specs are the source of truth</strong>. A server that changes behavior without changing its spec is invisible to this tool — that is not a flaw in the tool so much as a fact about trust. The fix is vendors who treat their spec as a contract, and tools like this one make the incentive to do so explicit.</p>
+<p>The test suite covers the classifier end to end — enum direction, required-field changes, cascade suppression, redirect header policy — which is exactly the part you want tested when the tool's job is to be right about breaking.</p>
+<p><code>apiwatch</code> is MIT-licensed, bundles its own SQLite, and has no system dependencies. Install from source with <code>cargo install --path . --locked</code>, or skip compiling: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.</p>
+<p>It is part of the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. Siblings: <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> for dangerous SQL migrations, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> for environment drift, <a href="https://github.com/hix-pro/action-lens">ActionLens</a> for workflow review.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="02-migration-guard-static-sql-analysis.html"><span class="label">Previous</span>Static SQL migration analysis without a database</a><a class="next" href="07-reporace-momentum-not-stars.html"><span class="label">Next</span>Momentum, not stars: ranking GitHub repos by acceleration</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

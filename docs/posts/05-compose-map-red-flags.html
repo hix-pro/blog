@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docker Compose red flags before you deploy — hix tools — writing</title>
+  <meta name="description" content="ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/05-compose-map-red-flags.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Docker Compose red flags before you deploy — hix tools — writing">
+  <meta property="og:description" content="ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/05-compose-map-red-flags.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/05-composemap.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Docker Compose red flags before you deploy — hix tools — writing">
+  <meta name="twitter:description" content="ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/05-composemap.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #39c5cf">
+    <img src="../covers/05-composemap.png" alt="Cover for Docker Compose red flags before you deploy" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">ComposeMap · hix tools</p>
+    <h1>Docker Compose red flags before you deploy</h1>
+    <p class="lede">ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.</p>
+    <p class="post-meta">5 min read · docker, devops, security, webdev</p>
+  </header>
+  <article class="prose">
+    <p>A Compose file is easy to write and hard to read back. <code>depends_on</code> hides startup order behind a YAML list. Long-form <code>ports:</code> syntax hides what is actually exposed to the host. And a literal database password in <code>environment:</code> looks exactly like every other line on the screen. Most Compose files get reviewed once — when they are written — and then quietly grow: a healthcheck forgotten, an image tag drifting to <code>latest</code>, a <code>docker.sock</code> mount added "temporarily" to make some tool work.</p>
+<p><a href="https://github.com/hix-pro/compose-map">ComposeMap</a> turns a <code>docker-compose.yml</code> into a service graph and a plain-English review before <code>docker compose up</code> ever reaches a server. It runs entirely in the browser — no backend, no account, no upload; the file never leaves the tab. Live demo: <a href="https://hix-pro.github.io/compose-map/">https://hix-pro.github.io/compose-map/</a>.</p>
+<h2>The red flags</h2>
+<p>Fourteen rules, three severities. The critical ones are the "this is how a container becomes a host" set:</p>
+<ul>
+<li><code>docker-socket</code> — mounting <code>/var/run/docker.sock</code> turns a container compromise into a host compromise. The container can now talk to the Docker daemon as root.</li>
+<li><code>privileged</code> — <code>privileged: true</code> gives a container almost all host capabilities. Almost nothing legitimately needs this.</li>
+<li><code>literal-secret</code> — a secret-looking value (or a URL with embedded credentials) committed right in the file. Deliberately conservative: values containing <code>${...}</code> are treated as references, never reported.</li>
+<li><code>no-image</code>, <code>missing-dependency</code>, <code>dependency-cycle</code> — a service that cannot start, a <code>depends_on</code> pointing at nothing, and a cycle that can never reach a healthy state.</li>
+</ul>
+<p>The warning tier is the "works today, fails surprisingly" set: <code>latest-image</code> and <code>unpinned-image</code> (the tag can change without your Compose file changing), <code>host-network</code> and <code>host-network-ports</code> (host networking bypasses Compose isolation, and <code>ports:</code> is silently ignored under it), and <code>no-healthcheck</code> (a running container is not necessarily a ready one). The info tier catches <code>no-restart</code> (the service stays down after a crash or reboot), <code>all-interfaces</code> (a published port binds every host interface unless an IP is given — the difference between a service on your LAN and one on the internet), and <code>container-name</code> (a fixed name prevents scaling beyond one replica).</p>
+<p>Each finding names the service, explains why it matters, and proposes a concrete fix.</p>
+<h2>Reading the graph</h2>
+<p>The graph answers a question the YAML makes tedious: what waits for what? An edge points from a service to something it depends on; severity indicators show where the findings cluster. Click a node to inspect it — ports, volumes, networks, dependencies, and its findings. The inspector shows environment <strong>keys only</strong> (values are hidden), so a screenshot of the app cannot leak a credential. Focus mode narrows the review to one service or one severity, which matters once the file is past a dozen services.</p>
+<h2>Try the bad example</h2>
+<p>Three fixtures ship with the app. <code>saas-starter</code> (web, worker, Postgres, Redis) is mostly healthy — it shows what a reasonable stack looks like when reviewed. <code>leaky-stack</code> is deliberately broken and fires nearly every rule; it is the default sample, which makes the tool self-demonstrating on first load. <code>media-homelab</code> (Jellyfin, Sonarr, qBittorrent, Watchtower) is a realistic hobby stack with the specific smells hobby stacks actually have — host networking for discovery, Watchtower on unpinned images. The same fixtures pass <code>docker compose config</code>, so you can diff the tool's reading against Docker's.</p>
+<p>Exports cover Mermaid (README diagrams), Markdown (PR descriptions), SVG/PNG (docs and slides), and JSON — the schema is stable and includes rule id, severity, service, message, and fix for every finding.</p>
+<h2>What it will not do</h2>
+<p>Static review only: it does not start containers, read Docker daemon settings, resolve image contents, scan for CVEs, or see runtime behavior. <code>${VAR}</code> references are not resolved — the tool cannot know what your <code>.env</code> contains, only that the file references a variable. A clean review means these 14 rules found nothing, not that the stack is safe. Orchestrator behavior (Swarm, Kubernetes, ECS) is out of scope. The parser handles short and long port/volume syntax, environment maps and lists, <code>env_file</code>, and both map and list forms of <code>depends_on</code>; YAML anchors and merge keys are handled by the YAML library rather than custom code. The rule engine and exporters are pure functions with 34 unit tests behind them.</p>
+<p>ComposeMap is MIT-licensed and client-side only. Run it locally with <code>npm install &amp;&amp; npm run dev</code>, or open the hosted demo — same code, no install.</p>
+<p>It is one of eight tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If you are hardening infrastructure config, <a href="https://github.com/hix-pro/action-lens">ActionLens</a> reviews the GitHub Actions workflows around that stack, and <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> catches the env vars it references but never documents.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="04-action-lens-16-workflow-checks.html"><span class="label">Previous</span>16 things to check in your GitHub Actions workflows</a><a class="next" href="01-env-audit-env-var-drift.html"><span class="label">Next</span>Catching env var drift before it breaks prod</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

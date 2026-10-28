@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Momentum, not stars: ranking GitHub repos by acceleration — hix tools — writing</title>
+  <meta name="description" content="RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/07-reporace-momentum-not-stars.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Momentum, not stars: ranking GitHub repos by acceleration — hix tools — writing">
+  <meta property="og:description" content="RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/07-reporace-momentum-not-stars.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/07-reporace.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Momentum, not stars: ranking GitHub repos by acceleration — hix tools — writing">
+  <meta name="twitter:description" content="RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/07-reporace.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #bc8cff">
+    <img src="../covers/07-reporace.png" alt="Cover for Momentum, not stars: ranking GitHub repos by acceleration" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">RepoRace · hix tools</p>
+    <h1>Momentum, not stars: ranking GitHub repos by acceleration</h1>
+    <p class="lede">RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.</p>
+    <p class="post-meta">5 min read · opensource, data, javascript, sqlite</p>
+  </header>
+  <article class="prose">
+    <p>GitHub's trending page is a black box. A raw star count mostly measures age — a project with 100,000 stars accumulated them over years, and the number says nothing about whether anyone cares this week. The signal people actually want from "trending" is acceleration: which repositories are gaining stars <em>right now</em>. And GitHub's API cannot give you that, because historical star counts are simply not exposed — the old stargazer-timestamp endpoint returns 404 for ordinary tokens, and GraphQL's <code>stargazers</code> connection does not provide timestamps.</p>
+<p><a href="https://github.com/hix-pro/reporace">RepoRace</a> works around the missing data the only honest way: <strong>it collects its own history</strong>. A collector snapshots exact star and fork counts via GraphQL for every tracked repo. Each run diffs the new total against the previous snapshot and records the delta against a UTC day. Velocity appears after the second snapshot; the chart fills in from there. Rank by stars gained in the last 24 hours, 7 days, or 30 days, and a new project gaining 800 stars a day outranks a famous one that added 600 — even when the famous one has 100× more total stars.</p>
+<h2>Two leaderboards, on purpose</h2>
+<ul>
+<li><strong>Momentum</strong> — rank by total stars gained in the range. The headline number.</li>
+<li><strong>Breakout</strong> — rank by percent growth relative to repo size. This is where a 2,000-star repo growing 15% in a week beats a 200,000-star repo growing 0.3%, and it is the closest thing to a "discover it early" list that does not depend on an opaque algorithm.</li>
+</ul>
+<p>Both work over three ranges — 24h, 7d, 30d — so "spiking today" and "climbing all month" are separate questions with separate answers. Repo detail pages show the cumulative star chart, daily gains, current pace, rank, and topics.</p>
+<h2>The demo-data honesty rule</h2>
+<p>A velocity product has a cold-start problem: with one snapshot there is nothing to rank. RepoRace resolves it without lying. <code>npm run demo</code> generates 30 days of history, and the UI badges it with an orange <strong>DEMO DATA</strong> banner. Live data gets a green <strong>LIVE</strong> badge. Running the collector deletes the demo history and switches the mode flag — there is no code path that quietly upgrades generated rows into live ones. Star totals in the seed are real; the daily history is not; the interface never blurs the distinction. If you borrow this pattern for anything else — generated metrics, sample data, seeded dashboards — steal the badge, not just the data.</p>
+<h2>Stack and structure</h2>
+<p>Node.js 24+ (the built-in <code>node:sqlite</code> module — no native dependency), Vite + React on the front, a small API server on 8787 that Vite proxies. Data lives in one SQLite file with four tables: <code>repos</code>, <code>snapshots</code>, <code>star_daily</code>, and <code>meta</code>. Snapshots are timestamped; daily rows are keyed by repo + UTC day; one collection run is wrapped in a single transaction, so a crash mid-collect leaves the previous state intact. The API computes rankings by summing daily deltas for the selected range and sorting — momentum by absolute delta, breakout by delta divided by size.</p>
+<p>Setup is three commands and a GitHub token with public-read access (the GitHub CLI's <code>gh auth login</code> works if you would rather not copy tokens):</p>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install
+npm<span class="w"> </span>run<span class="w"> </span>seed<span class="w">     </span><span class="c1"># fetch real metadata + star totals for the tracked repos</span>
+npm<span class="w"> </span>run<span class="w"> </span>dev<span class="w">      </span><span class="c1"># API + dashboard on localhost:5173</span>
+</code></pre></div>
+
+<p>Then <code>npm run collect</code> on a schedule (cron example included in the repo) to accumulate real history.</p>
+<h2>What it will not do</h2>
+<p>It does not predict anything. Velocity is a description of the past 24/7/30 days, not a forecast — trending-page placement, maintainer announcements, and HN front-page cycles all make the numbers jumpy, and RepoRace presents them without smoothing. It ranks only the repos it tracks (seeded list, editable); it is not a GitHub-wide search. Backfilling history it did not observe is impossible by design — the tool will not fabricate the past, which is the same honesty rule as the demo badge. And star velocity is one signal: it measures attention, not quality, not maintenance health, not security posture. Use it as a discovery surface, then do the actual evaluation yourself.</p>
+<p>RepoRace is MIT-licensed. The ranking math, day-boundary handling, and GitHub response validation are covered by unit tests — the kind of edges (month boundaries, unparseable rows, inclusive ranges) that quietly produce wrong leaderboards when untested.</p>
+<p>It is one of eight tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. The rest of the suite is pre-production tooling: <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> for environment drift, <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> for dangerous SQL migrations, <a href="https://github.com/hix-pro/api-watch">API Watch</a> for API contract changes, <a href="https://github.com/hix-pro/action-lens">ActionLens</a> for workflow review, <a href="https://github.com/hix-pro/compose-map">ComposeMap</a> for Compose files, and <a href="https://github.com/hix-pro/opencode-telegram">OpenCode Telegram</a> for running coding agents from your phone.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="03-api-watch-breaking-api-changes.html"><span class="label">Previous</span>Breaking API changes you didn&#x27;t know you shipped</a><a class="next" href="06-opencode-telegram-remote-control.html"><span class="label">Next</span>Remote-controlling OpenCode from Telegram</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

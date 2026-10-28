@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Remote-controlling OpenCode from Telegram — hix tools — writing</title>
+  <meta name="description" content="OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/06-opencode-telegram-remote-control.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Remote-controlling OpenCode from Telegram — hix tools — writing">
+  <meta property="og:description" content="OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/06-opencode-telegram-remote-control.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/06-opencode-telegram.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Remote-controlling OpenCode from Telegram — hix tools — writing">
+  <meta name="twitter:description" content="OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/06-opencode-telegram.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #2aabee">
+    <img src="../covers/06-opencode-telegram.png" alt="Cover for Remote-controlling OpenCode from Telegram" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">OpenCode Telegram · hix tools</p>
+    <h1>Remote-controlling OpenCode from Telegram</h1>
+    <p class="lede">OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.</p>
+    <p class="post-meta">5 min read · python, telegram, ai, automation</p>
+  </header>
+  <article class="prose">
+    <p>Coding agents have a workflow problem: they work when you sit in front of them. You kick off a task, and then you wait — refreshing a terminal, checking whether the agent hit a permission prompt, re-reading output you cannot interact with. The moment you step away from the desk, the agent either stalls on an approval or finishes and sits idle until you come back.</p>
+<p><a href="https://github.com/hix-pro/opencode-telegram">OpenCode Telegram</a> is a bridge that puts a local OpenCode server in your pocket. It is an independent community tool — not built by the OpenCode team — that talks to the server's local HTTP API. From Telegram you get live streaming of what the agent is doing (the message edits in place as tokens arrive), session switching, model and agent switching, file and shell commands, and — the important one — permission approvals from your phone: the bridge pings you with inline Yes/No buttons when the agent wants to do something your policy does not auto-answer.</p>
+<h2>Architecture in one paragraph</h2>
+<p><code>bridge.py</code> long-polls Telegram on the main thread and runs five background workers: a worker that dispatches queued prompts one turn at a time, an events thread holding one SSE connection to <code>/api/event</code> for live text deltas, a watcher that answers permission requests per your policy (auto-approving what you allowed, pinging with buttons for the rest), and a scheduler for due <code>/schedule</code> prompts. Each running turn gets its own thread. Because commands run on the main thread, <code>/abort</code>, <code>/yes</code>, and <code>/no</code> still respond instantly while the agent is mid-turn — the exact moment you need them.</p>
+<p>The instruction to the machine is one line in spirit: nothing the agent does may block the chat, and nothing you type may block the agent.</p>
+<h2>Setup is four commands</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># 1. Create a bot with @BotFather, copy the token</span>
+<span class="c1"># 2. Message the bot once, then read your chat id:</span>
+curl<span class="w"> </span><span class="s2">&quot;https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates&quot;</span>
+
+<span class="c1"># 3. Configure</span>
+cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env<span class="w">          </span><span class="c1"># it holds a bot token</span>
+<span class="nv">$EDITOR</span><span class="w"> </span>.env<span class="w">            </span><span class="c1"># TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID</span>
+
+<span class="c1"># 4. Install and run</span>
+./install.sh
+</code></pre></div>
+
+<p><code>install.sh</code> checks prerequisites, generates systemd user units from repo templates (any checkout location works, spaces included), and starts the service. It is safe to re-run after an upgrade and never overwrites your <code>.env</code> or state. The bridge warns at startup if your <code>.env</code> is group- or world-readable. Send <code>/doctor</code> and it reports the server, session, policy, event stream, permission watcher, and scheduler in one message — every subsystem answers, so misconfiguration is a diagnosis rather than an evening. On start the bridge also publishes its command list to Telegram, so every <code>/</code> autocompletes with a description and a persistent main menu (Status · Sessions · New · Abort · Help) attaches to the chat.</p>
+<h2>The testing lesson worth stealing</h2>
+<p>Here is the bug that shaped the project's test suite. The original hermetic suite faked the OpenCode HTTP API — and everything was green. It was also wrong: the fake ignored a query parameter, and the bridge worked flawlessly against the fake and not at all against the real server. Green tests, broken product, because the tests validated the mock's idea of the protocol instead of the protocol. The fix ships in the repo: a <strong>live</strong> suite, opt-in via <code>pytest -m live</code>, that talks to a real OpenCode server — creates a throwaway session in a temporary directory, exercises prompt, streaming, shell, filesystem, concurrency, and abort behavior, then deletes the session. Hermetic tests still cover the logic; the live suite exists precisely for the assumptions hermetic tests cannot check. If you build against someone else's HTTP API, build the second suite too.</p>
+<h2>Security posture</h2>
+<p>The bridge assumes one trusted operator and enforces it: <code>TELEGRAM_CHAT_ID</code> is an allowlist, and messages from any other chat are ignored before parsing. The bot token lives in a <code>chmod 600</code> file. Path handling for file commands is guarded (no <code>..</code> escapes outside the configured root), permission policy is explicit and inspected (<code>/policy</code> to view it), and the hardening docs cover running the bridge under a dedicated user with systemd sandboxing. Everything runs on your machine; Telegram is the transport, not the brain.</p>
+<h2>What it will not do</h2>
+<p>It is a bridge, not a wrapper: no prompt rewriting, no extra model calls, no message history of its own beyond the state file that tracks sessions and schedules. It requires a running OpenCode server on localhost and Telegram's Bot API — no webhooks, so no public endpoint to expose; the bridge polls outward. Long turns edit one message live rather than spamming new ones, with rate-limit-aware throttling. Python 3 with no exotic dependencies, MIT-licensed, and the systemd units ship hardened out of the box.</p>
+<p>It is one of eight tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If this one made you look at your workflow tooling, <a href="https://github.com/hix-pro/reporace">RepoRace</a> ranks GitHub repositories by momentum, and the rest of the suite covers the pre-production checklist: <a href="https://github.com/hix-pro/env-audit">EnvAudit</a>, <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a>, <a href="https://github.com/hix-pro/api-watch">API Watch</a>, <a href="https://github.com/hix-pro/action-lens">ActionLens</a>, <a href="https://github.com/hix-pro/compose-map">ComposeMap</a>.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="07-reporace-momentum-not-stars.html"><span class="label">Previous</span>Momentum, not stars: ranking GitHub repos by acceleration</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

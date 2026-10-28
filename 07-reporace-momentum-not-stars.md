@@ -1,5 +1,5 @@
 ---
-title: Momentum, not stars: ranking GitHub repos by acceleration
+title: "Momentum, not stars: ranking GitHub repos by acceleration"
 published: false
 description: RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.
 tags: opensource, data, javascript, sqlite

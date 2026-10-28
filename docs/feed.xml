@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>hix tools — writing</title>
+    <link>https://hix-pro.github.io/blog/</link>
+    <description>Seven practical deep dives into the checks that normally depend on someone remembering: env drift, dangerous migrations, contract breaks, workflow risk, Compose red flags, agent remote control, and star velocity.</description>
+    <language>en</language>
+    <lastBuildDate>Wed, 28 Oct 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://hix-pro.github.io/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <item>
+      <title>16 things to check in your GitHub Actions workflows</title>
+      <link>https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html</guid>
+      <description>ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, and a 16-rule security review.</description>
+      <category>ActionLens</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Docker Compose red flags before you deploy</title>
+      <link>https://hix-pro.github.io/blog/posts/05-compose-map-red-flags.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/05-compose-map-red-flags.html</guid>
+      <description>ComposeMap turns a Docker Compose file into a service graph and a plain-English risk review, entirely in your browser.</description>
+      <category>ComposeMap</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Catching env var drift before it breaks prod</title>
+      <link>https://hix-pro.github.io/blog/posts/01-env-audit-env-var-drift.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/01-env-audit-env-var-drift.html</guid>
+      <description>EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.</description>
+      <category>EnvAudit</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Static SQL migration analysis without a database</title>
+      <link>https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html</guid>
+      <description>Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</description>
+      <category>Migration Guard</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Breaking API changes you didn&#x27;t know you shipped</title>
+      <link>https://hix-pro.github.io/blog/posts/03-api-watch-breaking-api-changes.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/03-api-watch-breaking-api-changes.html</guid>
+      <description>API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.</description>
+      <category>API Watch</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Momentum, not stars: ranking GitHub repos by acceleration</title>
+      <link>https://hix-pro.github.io/blog/posts/07-reporace-momentum-not-stars.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/07-reporace-momentum-not-stars.html</guid>
+      <description>RepoRace ranks GitHub repositories by acceleration, not raw stars — momentum and breakout leaderboards backed by local SQLite.</description>
+      <category>RepoRace</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title>Remote-controlling OpenCode from Telegram</title>
+      <link>https://hix-pro.github.io/blog/posts/06-opencode-telegram-remote-control.html</link>
+      <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/06-opencode-telegram-remote-control.html</guid>
+      <description>OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.</description>
+      <category>OpenCode Telegram</category>
+      <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>

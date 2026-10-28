@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catching env var drift before it breaks prod — hix tools — writing</title>
+  <meta name="description" content="EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.">
+  <link rel="canonical" href="https://hix-pro.github.io/blog/posts/01-env-audit-env-var-drift.html">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <link rel="alternate" type="application/rss+xml" title="hix tools — writing" href="../feed.xml">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="hix tools — writing">
+  <meta property="og:title" content="Catching env var drift before it breaks prod — hix tools — writing">
+  <meta property="og:description" content="EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.">
+  <meta property="og:url" content="https://hix-pro.github.io/blog/posts/01-env-audit-env-var-drift.html">
+  <meta property="og:image" content="https://hix-pro.github.io/blog/covers/01-envaudit.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Catching env var drift before it breaks prod — hix tools — writing">
+  <meta name="twitter:description" content="EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.">
+  <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/01-envaudit.png">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="../index.html"><span class="prompt">&gt;_</span> hix tools</a>
+    <nav aria-label="Site">
+      <a href="../index.html">Writing</a>
+      <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/blog">GitHub</a>
+      <a href="../feed.xml">RSS</a>
+    </nav>
+  </header>
+  <main id="main" class="post">
+  <a class="back" href="../index.html">← All writing</a>
+  <div class="post-cover" style="--accent: #3fb950">
+    <img src="../covers/01-envaudit.png" alt="Cover for Catching env var drift before it breaks prod" width="2400" height="1260">
+  </div>
+  <header class="post-header">
+    <p class="eyebrow">EnvAudit · hix tools</p>
+    <h1>Catching env var drift before it breaks prod</h1>
+    <p class="lede">EnvAudit scans a repo for env vars that are missing, undocumented, unused, or exposed as secrets — and fails CI when code and configuration disagree.</p>
+    <p class="post-meta">4 min read · devops, rust, ci, security</p>
+  </header>
+  <article class="prose">
+    <p>Every deploy script is a bet that your code and your configuration agree about the world. Code reads <code>DEPLOY_REGION</code>; the deployment environment sets <code>DEPLOY_REGION_V2</code> after someone renamed it in March. Locally, everything works because your <code>.env</code> has a value the example file never mentioned. In staging, the process starts and falls back to a default region three timezones away. None of this shows up in tests, because tests run with the developer's own environment. Env drift is invisible by construction — it only exists at the boundary between two machines that were configured by different people at different times.</p>
+<p><a href="https://github.com/hix-pro/env-audit">EnvAudit</a> is a local-first Rust CLI that makes that boundary explicit. It scans a repository and finds the four ways code and configuration disagree: variables used but never declared (<code>missing</code>), declared but absent from your example file (<code>undocumented</code>), declared but never read by any code (<code>unused</code>), and secrets sitting in files that <code>.gitignore</code> does not cover (<code>secret</code>). It also flags the same variable declared twice with different values, which is its own quiet disaster.</p>
+<h2>What a run looks like</h2>
+<p>The repo ships a deliberately broken fixture project, so the output is reproducible in ten seconds:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>examples/fixture-project
+<span class="gp">$ </span>envaudit<span class="w"> </span>scan<span class="w"> </span>.
+<span class="go">EnvAudit · 0.3.1</span>
+<span class="go">Scanned 7 files under .</span>
+
+<span class="go">critical (1)</span>
+<span class="go">  secret        STRIPE_SECRET_KEY</span>
+<span class="go">    found in .env:3</span>
+<span class="go">    A likely secret value is stored in .env, which is not ignored by .gitignore.</span>
+<span class="go">    fix: Remove the value from .env, rotate the credential, and add .env to .gitignore.</span>
+
+<span class="go">error (1)</span>
+<span class="go">  missing       DEPLOY_REGION</span>
+<span class="go">    used at src/server.ts:8</span>
+<span class="go">    Referenced in scanned code but not declared in any env file, Compose environment, or workflow env map.</span>
+<span class="go">    fix: Add DEPLOY_REGION to .env.example and the deployment environment, or remove the reference.</span>
+
+<span class="go">warning (2)</span>
+<span class="go">  undocumented  LEGACY_SMTP_HOST</span>
+<span class="go">    declared at .env:4</span>
+<span class="go">    Set in runtime configuration but absent from the example env file.</span>
+<span class="go">    fix: Add LEGACY_SMTP_HOST to .env.example so new contributors can discover it.</span>
+<span class="go">  unused        UNUSED_LEGACY_FLAG</span>
+<span class="go">    declared at .env.example:8</span>
+<span class="go">    Declared in an example env file but never referenced in scanned code.</span>
+<span class="go">    fix: Remove UNUSED_LEGACY_FLAG from the example file or add the code that reads it.</span>
+
+<span class="go">info (1)</span>
+<span class="go">  duplicate     DATABASE_URL</span>
+<span class="go">    declared at:</span>
+<span class="go">      .env:1</span>
+<span class="go">      .env.local:1</span>
+</code></pre></div>
+
+<p>Every finding names the file and line, explains why it is a finding, and proposes the fix. The tool never applies fixes itself — more on that below.</p>
+<h2>How it decides</h2>
+<p>EnvAudit cross-references three sources: declarations (<code>.env</code>, <code>.env.example</code>, Compose <code>environment:</code> maps, workflow <code>env:</code> blocks), usages (<code>process.env.X</code>, <code>os.Getenv</code>, <code>std::env::var</code> and friends in scanned source files), and <code>.gitignore</code> coverage. A variable that is used but declared nowhere is <code>missing</code>. One declared in a real env file but absent from the example file is <code>undocumented</code>. The inverse is <code>unused</code>. A secret-shaped value in a file your <code>.gitignore</code> fails to cover is <code>critical</code>, because that is the "one bad <code>git push</code> away from leaking" case.</p>
+<p>By default the tool is a report: it prints findings and exits <code>0</code>. The <code>--fail-on any|missing|secret</code> flag opts into gating: exit <code>2</code> when matching findings exist, exit <code>1</code> on scan errors like malformed dotenv lines. Report-only by default is deliberate — you can point it at years of accumulated legacy code on day one, read the report, and only wire CI to fail once you have decided what the baseline is. <code>--json</code> emits a stable, versioned document (<code>schema_version: 1</code>, deterministically sorted, secret values never serialized) and <code>--markdown</code> produces a paste-ready pull request comment. Both exist because "the humans can read the terminal output" stops being true the moment you want a bot to react to it.</p>
+<h2>The CI recipe is two steps</h2>
+<div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/env-audit@v0.3.1</span>
+<span class="w">  </span><span class="nt">with</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">fail-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">any</span>
+</code></pre></div>
+
+<p>The action downloads a prebuilt binary for the runner (no Rust compilation) and falls back to building from source if needed. Start with <code>fail-on: secret</code> if the full report looks overwhelming. Fixing "a credential is one bad push away from leaking" is worth doing before you care about documentation drift.</p>
+<h2>What it will not do</h2>
+<p>There is no auto-fix, no environment expansion, and no secret rotation — on principle. A tool that silently rewrites your <code>.env.example</code> is a tool that can silently corrupt it. EnvAudit tells you the fix and lets you decide. Files over 1 MiB, symlinks, <code>node_modules</code>, <code>target</code>, and <code>vendor</code> are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles <code>KEY=VALUE</code> lines with single-line quoting; anything exotic exits <code>1</code> rather than guessing.</p>
+<p>EnvAudit is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.</p>
+<p>It is one of eight tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. The siblings cover the rest of the pre-production checklist: <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> catches dangerous SQL migrations statically, <a href="https://github.com/hix-pro/api-watch">API Watch</a> catches breaking API contract changes, and <a href="https://github.com/hix-pro/action-lens">ActionLens</a> reviews your GitHub Actions workflows before they reach <code>main</code>.</p>
+  </article>
+  <nav class="post-nav" aria-label="Posts"><a href="05-compose-map-red-flags.html"><span class="label">Previous</span>Docker Compose red flags before you deploy</a><a class="next" href="02-migration-guard-static-sql-analysis.html"><span class="label">Next</span>Static SQL migration analysis without a database</a></nav>
+</main>
+
+  <footer class="site-footer">
+    <p><strong>hix tools</strong> — local-first developer tools that catch what CI misses.</p>
+    <p><a href="https://github.com/hix-pro">GitHub</a> · <a href="https://github.com/topics/hix-tools">All tools</a> · <a href="https://github.com/hix-pro/blog">Source</a> · <a href="../feed.xml">RSS</a></p>
+  </footer>
+</body>
+</html>

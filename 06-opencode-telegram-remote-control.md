@@ -1,7 +1,7 @@
 ---
 title: Remote-controlling OpenCode from Telegram
 published: false
-description: OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone.
+description: "OpenCode Telegram puts a local OpenCode server in your pocket: streaming replies, session switching, and permission approvals from your phone."
 tags: python, telegram, ai, automation
 series: hix tools — local-first dev tools
 cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/06-opencode-telegram.png
