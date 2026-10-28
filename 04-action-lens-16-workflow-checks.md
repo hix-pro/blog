@@ -70,4 +70,4 @@ Static review only: it does not run workflows, resolve expressions, evaluate `if
 
 ActionLens is MIT-licensed and runs entirely client-side. Run it locally with `npm install && npm run dev`, or use the hosted demo — same code, no install.
 
-It is one of seven tools in the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If you are hardening CI, [EnvAudit](https://github.com/hix-pro/env-audit) catches environment drift and leaked secrets in the repo itself, and [API Watch](https://github.com/hix-pro/api-watch) keeps third-party API contracts from breaking your build.
+It is one of eight tools in the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If you are hardening CI, [EnvAudit](https://github.com/hix-pro/env-audit) catches environment drift and leaked secrets in the repo itself, and [API Watch](https://github.com/hix-pro/api-watch) keeps third-party API contracts from breaking your build.
