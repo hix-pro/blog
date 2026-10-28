@@ -69,6 +69,17 @@ The database is the state, so it has to survive between runs:
 
 Passing `spec` makes cache eviction self-healing: on a warm cache the target already exists and re-adding is a no-op; on a cold cache it restores the tracking entry so the first check records a fresh baseline and exits `0`. The action downloads a prebuilt binary and falls back to compiling. Specs behind auth use static headers (no OAuth flows — see limits below).
 
+## Run it with the suite
+
+The CLI tools share a runner. [`hix`](https://github.com/hix-pro/hix) looks for the tools installed on `PATH`, applies a check plan, and prints one table with one exit code:
+
+```sh
+pipx install git+https://github.com/hix-pro/hix.git
+hix check
+```
+
+It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a `.hix.toml` when you want the plan to be explicit.
+
 ## What it will not do
 
 Static headers only — no OAuth2 flows, no mTLS. External `$ref`s are not fetched (unresolved ones are counted and surfaced). `allOf`/`oneOf`/`anyOf` are traversed with required-field merging, but composition is not fully proven. And the deepest limit, stated without apology: **specs are the source of truth**. A server that changes behavior without changing its spec is invisible to this tool — that is not a flaw in the tool so much as a fact about trust. The fix is vendors who treat their spec as a contract, and tools like this one make the incentive to do so explicit.

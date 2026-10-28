@@ -27,6 +27,7 @@
     <nav aria-label="Site">
       <a href="../index.html">Writing</a>
       <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/hix">hix</a>
       <a href="https://github.com/hix-pro/blog">GitHub</a>
       <a href="../feed.xml">RSS</a>
     </nav>
@@ -40,7 +41,7 @@
     <p class="eyebrow">API Watch · hix tools</p>
     <h1>Breaking API changes you didn&#x27;t know you shipped</h1>
     <p class="lede">API Watch diffs OpenAPI specs against a local baseline and classifies every change as breaking or safe, with CI-ready exit codes.</p>
-    <p class="post-meta">4 min read · api, openapi, ci, rust</p>
+    <p class="post-meta">5 min read · api, openapi, ci, rust</p>
   </header>
   <article class="prose">
     <p>A vendor ships a new version of their API. The changelog says "minor improvements." Your integration breaks on Tuesday because a field your code depends on moved from optional to required — technically announced, practically invisible. Or the mirror image: you are the vendor, a refactor quietly makes a response field optional, and three customers find out before you do. OpenAPI specs are supposed to prevent this by being a contract, but nothing enforces the contract between versions. The diff between two spec files is where the truth lives, and nobody wants to read a 400-line diff by hand.</p>
@@ -130,6 +131,13 @@
 </code></pre></div>
 
 <p>Passing <code>spec</code> makes cache eviction self-healing: on a warm cache the target already exists and re-adding is a no-op; on a cold cache it restores the tracking entry so the first check records a fresh baseline and exits <code>0</code>. The action downloads a prebuilt binary and falls back to compiling. Specs behind auth use static headers (no OAuth flows — see limits below).</p>
+<h2>Run it with the suite</h2>
+<p>The CLI tools share a runner. <a href="https://github.com/hix-pro/hix"><code>hix</code></a> looks for the tools installed on <code>PATH</code>, applies a check plan, and prints one table with one exit code:</p>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>git+https://github.com/hix-pro/hix.git
+hix<span class="w"> </span>check
+</code></pre></div>
+
+<p>It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a <code>.hix.toml</code> when you want the plan to be explicit.</p>
 <h2>What it will not do</h2>
 <p>Static headers only — no OAuth2 flows, no mTLS. External <code>$ref</code>s are not fetched (unresolved ones are counted and surfaced). <code>allOf</code>/<code>oneOf</code>/<code>anyOf</code> are traversed with required-field merging, but composition is not fully proven. And the deepest limit, stated without apology: <strong>specs are the source of truth</strong>. A server that changes behavior without changing its spec is invisible to this tool — that is not a flaw in the tool so much as a fact about trust. The fix is vendors who treat their spec as a contract, and tools like this one make the incentive to do so explicit.</p>
 <p>The test suite covers the classifier end to end — enum direction, required-field changes, cascade suppression, redirect header policy — which is exactly the part you want tested when the tool's job is to be right about breaking.</p>

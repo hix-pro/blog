@@ -21,7 +21,8 @@ SITE_TITLE = "hix tools — writing"
 SITE_DESCRIPTION = (
     "Seven practical deep dives into the checks that normally depend on "
     "someone remembering: env drift, dangerous migrations, contract breaks, "
-    "workflow risk, Compose red flags, agent remote control, and star velocity."
+    "workflow risk, Compose red flags, agent remote control, and star velocity "
+    "— plus the hix runner that ties the CLI tools together."
 )
 PUBLISHED = datetime(2026, 10, 28, tzinfo=timezone.utc)
 
@@ -128,6 +129,7 @@ def page(
     <nav aria-label="Site">
       <a href="{prefix}index.html">Writing</a>
       <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/hix">hix</a>
       <a href="https://github.com/hix-pro/blog">GitHub</a>
       <a href="{prefix}feed.xml">RSS</a>
     </nav>

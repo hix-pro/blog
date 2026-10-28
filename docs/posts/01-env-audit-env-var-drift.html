@@ -27,6 +27,7 @@
     <nav aria-label="Site">
       <a href="../index.html">Writing</a>
       <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/hix">hix</a>
       <a href="https://github.com/hix-pro/blog">GitHub</a>
       <a href="../feed.xml">RSS</a>
     </nav>
@@ -93,6 +94,13 @@
 </code></pre></div>
 
 <p>The action downloads a prebuilt binary for the runner (no Rust compilation) and falls back to building from source if needed. Start with <code>fail-on: secret</code> if the full report looks overwhelming. Fixing "a credential is one bad push away from leaking" is worth doing before you care about documentation drift.</p>
+<h2>Run it with the suite</h2>
+<p>The CLI tools share a runner. <a href="https://github.com/hix-pro/hix"><code>hix</code></a> looks for the tools installed on <code>PATH</code>, applies a check plan, and prints one table with one exit code:</p>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>git+https://github.com/hix-pro/hix.git
+hix<span class="w"> </span>check
+</code></pre></div>
+
+<p>It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a <code>.hix.toml</code> when you want the plan to be explicit.</p>
 <h2>What it will not do</h2>
 <p>There is no auto-fix, no environment expansion, and no secret rotation — on principle. A tool that silently rewrites your <code>.env.example</code> is a tool that can silently corrupt it. EnvAudit tells you the fix and lets you decide. Files over 1 MiB, symlinks, <code>node_modules</code>, <code>target</code>, and <code>vendor</code> are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles <code>KEY=VALUE</code> lines with single-line quoting; anything exotic exits <code>1</code> rather than guessing.</p>
 <p>EnvAudit is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.</p>

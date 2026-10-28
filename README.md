@@ -2,7 +2,7 @@
 
 **Live site: [hix-pro.github.io/blog](https://hix-pro.github.io/blog/)**
 
-Seven practical posts on local-first developer tools that catch what CI misses: env drift, dangerous SQL migrations, breaking API contracts, GitHub Actions risk, Docker Compose red flags, remote-controlling a coding agent, and star velocity.
+Seven practical posts on local-first developer tools that catch what CI misses: env drift, dangerous SQL migrations, breaking API contracts, GitHub Actions risk, Docker Compose red flags, remote-controlling a coding agent, and star velocity. The CLI tools can be run together with [`hix`](https://github.com/hix-pro/hix).
 
 | # | Post | Tool |
 |---|------|------|

@@ -82,6 +82,17 @@ jobs:
 
 The `paths:` filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action fetches a prebuilt binary and falls back to compiling if needed.
 
+## Run it with the suite
+
+The CLI tools share a runner. [`hix`](https://github.com/hix-pro/hix) looks for the tools installed on `PATH`, applies a check plan, and prints one table with one exit code:
+
+```sh
+pipx install git+https://github.com/hix-pro/hix.git
+hix check
+```
+
+It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a `.hix.toml` when you want the plan to be explicit.
+
 ## What it will not do
 
 Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a `CREATE INDEX` that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether `CONCURRENTLY` will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.

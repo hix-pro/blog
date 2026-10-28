@@ -69,6 +69,17 @@ By default the tool is a report: it prints findings and exits `0`. The `--fail-o
 
 The action downloads a prebuilt binary for the runner (no Rust compilation) and falls back to building from source if needed. Start with `fail-on: secret` if the full report looks overwhelming. Fixing "a credential is one bad push away from leaking" is worth doing before you care about documentation drift.
 
+## Run it with the suite
+
+The CLI tools share a runner. [`hix`](https://github.com/hix-pro/hix) looks for the tools installed on `PATH`, applies a check plan, and prints one table with one exit code:
+
+```sh
+pipx install git+https://github.com/hix-pro/hix.git
+hix check
+```
+
+It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a `.hix.toml` when you want the plan to be explicit.
+
 ## What it will not do
 
 There is no auto-fix, no environment expansion, and no secret rotation — on principle. A tool that silently rewrites your `.env.example` is a tool that can silently corrupt it. EnvAudit tells you the fix and lets you decide. Files over 1 MiB, symlinks, `node_modules`, `target`, and `vendor` are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles `KEY=VALUE` lines with single-line quoting; anything exotic exits `1` rather than guessing.

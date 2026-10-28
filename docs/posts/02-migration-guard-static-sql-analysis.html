@@ -27,6 +27,7 @@
     <nav aria-label="Site">
       <a href="../index.html">Writing</a>
       <a href="https://github.com/hix-pro">Tools</a>
+      <a href="https://github.com/hix-pro/hix">hix</a>
       <a href="https://github.com/hix-pro/blog">GitHub</a>
       <a href="../feed.xml">RSS</a>
     </nav>
@@ -106,6 +107,13 @@
 </code></pre></div>
 
 <p>The <code>paths:</code> filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action fetches a prebuilt binary and falls back to compiling if needed.</p>
+<h2>Run it with the suite</h2>
+<p>The CLI tools share a runner. <a href="https://github.com/hix-pro/hix"><code>hix</code></a> looks for the tools installed on <code>PATH</code>, applies a check plan, and prints one table with one exit code:</p>
+<div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>git+https://github.com/hix-pro/hix.git
+hix<span class="w"> </span>check
+</code></pre></div>
+
+<p>It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a <code>.hix.toml</code> when you want the plan to be explicit.</p>
 <h2>What it will not do</h2>
 <p>Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a <code>CREATE INDEX</code> that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether <code>CONCURRENTLY</code> will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.</p>
 <p>Migration Guard is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.</p>
