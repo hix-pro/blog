@@ -40,4 +40,4 @@ Static review only: it does not start containers, read Docker daemon settings, r
 
 ComposeMap is MIT-licensed and client-side only. Run it locally with `npm install && npm run dev`, or open the hosted demo — same code, no install.
 
-It is one of eight tools in the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If you are hardening infrastructure config, [ActionLens](https://github.com/hix-pro/action-lens) reviews the GitHub Actions workflows around that stack, and [EnvAudit](https://github.com/hix-pro/env-audit) catches the env vars it references but never documents.
+It is one of nine tools in the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. If you are hardening infrastructure config, [ActionLens](https://github.com/hix-pro/action-lens) reviews the GitHub Actions workflows around that stack, and [EnvAudit](https://github.com/hix-pro/env-audit) catches the env vars it references but never documents.

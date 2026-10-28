@@ -93,7 +93,7 @@
 <h2>What it will not do</h2>
 <p>Static review only: it does not run workflows, resolve expressions, evaluate <code>if:</code> conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, footprint estimator, exporters) is pure functions with 52 unit tests; the UI only handles state.</p>
 <p>ActionLens is MIT-licensed and runs entirely client-side. Run it locally with <code>npm install &amp;&amp; npm run dev</code>, or use the hosted demo — same code, no install.</p>
-<p>It is one of eight tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If you are hardening CI, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> catches environment drift and leaked secrets in the repo itself, and <a href="https://github.com/hix-pro/api-watch">API Watch</a> keeps third-party API contracts from breaking your build.</p>
+<p>It is one of nine tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If you are hardening CI, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> catches environment drift and leaked secrets in the repo itself, and <a href="https://github.com/hix-pro/api-watch">API Watch</a> keeps third-party API contracts from breaking your build.</p>
   </article>
   <nav class="post-nav" aria-label="Posts"><a class="next" href="05-compose-map-red-flags.html"><span class="label">Next</span>Docker Compose red flags before you deploy</a></nav>
 </main>
