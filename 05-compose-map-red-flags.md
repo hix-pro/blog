@@ -28,7 +28,21 @@ Each finding names the service, explains why it matters, and proposes a concrete
 
 The graph answers a question the YAML makes tedious: what waits for what? An edge points from a service to something it depends on; severity indicators show where the findings cluster. Click a node to inspect it — ports, volumes, networks, dependencies, and its findings. The inspector shows environment **keys only** (values are hidden), so a screenshot of the app cannot leak a credential. Focus mode narrows the review to one service or one severity, which matters once the file is past a dozen services.
 
-## Try the bad example
+## Comparing two revisions
+
+The riskiest Compose change is usually not the one that adds a service. It is the one-line edit buried in a large diff: `image: postgres:16.4` becomes `latest`, `127.0.0.1:8080:80` becomes `8080:80`, or a `privileged: true` appears in a file that was clean yesterday. Reviewing the new file on its own forces you to hold the old one in your head.
+
+**Compare** in ComposeMap takes the previous revision on the left and the proposed one on the right. It parses both with the same parser and runs the same 14 rules against each, then shows the delta:
+
+- Services added, removed, and changed, down to individual fields: image, build, command, ports, volumes, environment, `env_file`, `depends_on`, networks, healthcheck, restart policy, and privilege.
+- Findings introduced, resolved, and re-graded. A warning that becomes critical is called out instead of looking like the same finding.
+- Top-level network and volume changes.
+
+Environment values that look like secrets are redacted in the comparison, so a token change shows as `•••• (hidden)` rather than printing the credential into a screenshot or a shared screen. Short and long port/volume syntax are compared semantically, so reformatting a file does not produce noise. If you want to compare what Docker will actually run rather than the raw file, run `docker compose config` first and paste the normalized output into either side.
+
+The comparison is still static review: it tells you which risks changed, not whether the new stack is safe, and it cannot resolve `${VAR}` references. It is a review aid for the diff, not a substitute for one.
+
+
 
 Three fixtures ship with the app. `saas-starter` (web, worker, Postgres, Redis) is mostly healthy — it shows what a reasonable stack looks like when reviewed. `leaky-stack` is deliberately broken and fires nearly every rule; it is the default sample, which makes the tool self-demonstrating on first load. `media-homelab` (Jellyfin, Sonarr, qBittorrent, Watchtower) is a realistic hobby stack with the specific smells hobby stacks actually have — host networking for discovery, Watchtower on unpinned images. The same fixtures pass `docker compose config`, so you can diff the tool's reading against Docker's.
 
@@ -36,7 +50,7 @@ Exports cover Mermaid (README diagrams), Markdown (PR descriptions), SVG/PNG (do
 
 ## What it will not do
 
-Static review only: it does not start containers, read Docker daemon settings, resolve image contents, scan for CVEs, or see runtime behavior. `${VAR}` references are not resolved — the tool cannot know what your `.env` contains, only that the file references a variable. A clean review means these 14 rules found nothing, not that the stack is safe. Orchestrator behavior (Swarm, Kubernetes, ECS) is out of scope. The parser handles short and long port/volume syntax, environment maps and lists, `env_file`, and both map and list forms of `depends_on`; YAML anchors and merge keys are handled by the YAML library rather than custom code. The rule engine and exporters are pure functions with 34 unit tests behind them.
+Static review only: it does not start containers, read Docker daemon settings, resolve image contents, scan for CVEs, or see runtime behavior. `${VAR}` references are not resolved — the tool cannot know what your `.env` contains, only that the file references a variable. A clean review means these 14 rules found nothing, not that the stack is safe. Orchestrator behavior (Swarm, Kubernetes, ECS) is out of scope. The parser handles short and long port/volume syntax, environment maps and lists, `env_file`, and both map and list forms of `depends_on`; YAML anchors and merge keys are handled by the YAML library rather than custom code. The rule engine and exporters are pure functions with 46 unit tests behind them.
 
 ComposeMap is MIT-licensed and client-side only. Run it locally with `npm install && npm run dev`, or open the hosted demo — same code, no install.
 
