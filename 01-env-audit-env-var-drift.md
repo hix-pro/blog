@@ -18,7 +18,7 @@ The repo ships a deliberately broken fixture project, so the output is reproduci
 ```console
 $ cd examples/fixture-project
 $ envaudit scan .
-EnvAudit · 0.3.1
+EnvAudit · 0.4.0
 Scanned 7 files under .
 
 critical (1)
@@ -50,7 +50,7 @@ info (1)
       .env.local:1
 ```
 
-Every finding names the file and line, explains why it is a finding, and proposes the fix. The tool never applies fixes itself — more on that below.
+Every finding names the file and line, explains why it is a finding, and proposes the fix. The default scan is read-only; an explicit `--fix` can close the documentation gaps without guessing values, as described below.
 
 ## How it decides
 
@@ -58,11 +58,29 @@ EnvAudit cross-references three sources: declarations (`.env`, `.env.example`, C
 
 By default the tool is a report: it prints findings and exits `0`. The `--fail-on any|missing|secret` flag opts into gating: exit `2` when matching findings exist, exit `1` on scan errors like malformed dotenv lines. Report-only by default is deliberate — you can point it at years of accumulated legacy code on day one, read the report, and only wire CI to fail once you have decided what the baseline is. `--json` emits a stable, versioned document (`schema_version: 1`, deterministically sorted, secret values never serialized) and `--markdown` produces a paste-ready pull request comment. Both exist because "the humans can read the terminal output" stops being true the moment you want a bot to react to it.
 
+## Close the documentation gap without guessing values
+
+Most EnvAudit findings are documentation drift, not code bugs. The default scan is still read-only, but an explicit `--fix` can append the names reported as `missing` or `undocumented` to the primary example env file:
+
+```console
+$ envaudit scan . --fix
+updated .env.example (+2 variables)
+  + DEPLOY_REGION
+  + LEGACY_SMTP_HOST
+
+EnvAudit · 0.4.0
+...
+```
+
+It writes names with empty values. It never copies a value, never edits `.env` or any other real env file, and never removes an entry. If no example exists, it creates `.env.example` and seeds it with the names already set in real env files, so the new file does not immediately produce a fresh round of `undocumented` findings. The command then re-scans, so the report and exit code describe the repository after the edit. `--fail-on` can be combined with `--fix` to confirm a CI-blocking gap is closed.
+
+`--fix` is deliberately limited to documentation gaps. Unused entries, duplicates, and secrets still need a human decision — removing an entry can break a dependency that reads it, and rotating a credential cannot be automated from a static scan. `--fix` also conflicts with `--json`, `--markdown`, and `--sarif`; run those after reviewing the edit.
+
 ## The CI recipe is two steps
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: hix-pro/env-audit@v0.3.1
+- uses: hix-pro/env-audit@v0.4.0
   with:
     fail-on: any
 ```
@@ -82,7 +100,7 @@ It installs nothing and sends no telemetry. A tool that is missing or needs conf
 
 ## What it will not do
 
-There is no auto-fix, no environment expansion, and no secret rotation — on principle. A tool that silently rewrites your `.env.example` is a tool that can silently corrupt it. EnvAudit tells you the fix and lets you decide. Files over 1 MiB, symlinks, `node_modules`, `target`, and `vendor` are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles `KEY=VALUE` lines with single-line quoting; anything exotic exits `1` rather than guessing.
+It will not invent configuration values, expand environment variables, or rotate secrets. `--fix` is opt-in and narrow: it appends bare names to one example env file and then re-scans. It never rewrites a real env file, removes an entry, or fills in a value, and it leaves `unused`, `duplicate`, and `secret` findings for a human. Files over 1 MiB, symlinks, `node_modules`, `target`, and `vendor` are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles `KEY=VALUE` lines with single-line quoting; anything exotic exits `1` rather than guessing.
 
 EnvAudit is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.
 
