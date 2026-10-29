@@ -1,7 +1,7 @@
 ---
 title: Static SQL migration analysis without a database
 published: false
-description: Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.
+description: Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.
 tags: sql, postgresql, devops, rust
 series: hix tools — local-first dev tools
 cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/02-migration-guard.png
@@ -9,13 +9,13 @@ cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/02-migra
 
 The most expensive way to learn that your migration locks a table is to run it against production. `CREATE INDEX` on a large table blocks writes for the duration. `ALTER TABLE ... ALTER COLUMN ... TYPE` rewrites the table. A missing `WHERE` on a `DELETE` is self-explanatory. Every engineer eventually collects one of these scars, and the tools that try to prevent them usually want a database connection — a staging database to dry-run against, which you must keep fresh, seed, and pay for.
 
-[Migration Guard](https://github.com/hix-pro/migration-guard) takes a different position: parse the SQL, apply rules, print findings. No connection string, no credentials, no database. It reads migration files the same way the database will — statement by statement — and reasons about them statically. That makes it fast enough to run on every pull request, and safe enough to point at anything.
+[Migration Guard](https://github.com/hix-pro/migration-guard) takes a different position: find the migrations, parse the SQL, apply rules, print findings. No connection string, no credentials, no database. It reads migration files the same way the database will — statement by statement — and reasons about them statically. That makes it fast enough to run on every pull request, and safe enough to point at anything.
 
 ## What a run looks like
 
 ```console
 $ migration-guard check examples/risky.sql --fail-on risky
-migration-guard 0.3.1  ·  postgres  ·  1 file
+migration-guard 0.4.0  ·  postgres  ·  1 file
 
 examples/risky.sql  (8 statements)
   risky        MG005  line 2
@@ -53,6 +53,27 @@ Summary: 1 file, 8 statements, 6 findings (0 destructive, 4 risky, 2 warnings)
 
 Each finding carries a `Why` and a `Fix`. The fixes are the standard operational playbooks — nullable-then-backfill, `NOT VALID` then `VALIDATE CONSTRAINT`, expand/contract renames — written out where the person touching the migration will actually see them.
 
+## Find the migrations before checking them
+
+Most projects do not keep migrations in a directory called `migrations`. Flyway uses `db/migration` under the resources root, Prisma writes `prisma/migrations/<timestamp>/migration.sql`, Drizzle emits SQL into `drizzle/`, and monorepos nest any of these under a package. Requiring every project to spell out the path is friction that leads to the guard being configured wrong or skipped.
+
+Run `migration-guard check` with no path and it discovers the usual layouts first:
+
+```console
+$ migration-guard discover
+migration-guard 0.4.0  ·  discovery  ·  2 directories, 14 SQL files
+root: .
+
+  Prisma      prisma/migrations  (7 files)
+  Flyway      services/api/src/main/resources/db/migration  (7 files)
+
+Run migration-guard check to analyze these directories.
+```
+
+Discovery covers Flyway, Liquibase, Prisma, Drizzle, Supabase, and generic `migrations` / `migration` / `migrate` directories, including the common nested monorepo paths. It walks at most ten levels, skips dependency and build directories, and only reports a directory that actually contains a `.sql` file. `discover --format json` is available when a script needs the list.
+
+`migration-guard check` uses the same list when no path is supplied, so the CI example below can drop its path entirely. If discovery is wrong for your layout, `migration-guard check path/to/sql` still works, and `check --root services/api` discovers from a subdirectory. When nothing is found, `check` exits `1` with a message instead of reporting a clean scan of zero files.
+
 ## The rules
 
 Thirteen rules, three severities. `destructive` is data loss or unbounded locking: `DROP TABLE`, `TRUNCATE`, `ALTER TABLE ... DROP COLUMN` (MG001), `DELETE` or `UPDATE` without a `WHERE` (MG002, MG003). `risky` is likely downtime: column type changes (MG004), `NOT NULL` without a `DEFAULT` (MG005, MG006), PostgreSQL index builds without `CONCURRENTLY` (MG007, MG008), foreign keys validated in-place (MG009), `VACUUM FULL` and `CLUSTER` (MG012). `warning` is "works, but check intent": renames that break clients (MG010), `CONCURRENTLY` inside a transaction block where it will simply fail at execution time (MG011), and `DO` blocks or statement types outside the known rule set (MG013).
@@ -74,13 +95,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: hix-pro/migration-guard@v0.3.1
+      - uses: hix-pro/migration-guard@v0.4.0
         with:
-          paths: migrations
           fail-on: destructive
 ```
 
-The `paths:` filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action fetches a prebuilt binary and falls back to compiling if needed.
+The `on.pull_request.paths` filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action discovers migration directories by default; set `paths: .` to scan every `.sql` file, or pin a directory. It fetches a prebuilt binary and falls back to compiling if needed.
 
 ## Run it with the suite
 
@@ -95,7 +115,7 @@ It installs nothing and sends no telemetry. A tool that is missing or needs conf
 
 ## What it will not do
 
-Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a `CREATE INDEX` that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether `CONCURRENTLY` will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.
+Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a `CREATE INDEX` that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether `CONCURRENTLY` will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. Discovery is heuristic — Ruby, Python, and JavaScript migration files are not SQL and are not analyzed, and a custom SQL location needs an explicit path. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.
 
 Migration Guard is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.
 

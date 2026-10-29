@@ -35,7 +35,7 @@
       <title>Static SQL migration analysis without a database</title>
       <link>https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html</link>
       <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html</guid>
-      <description>Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</description>
+      <description>Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</description>
       <category>Migration Guard</category>
       <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
     </item>

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Static SQL migration analysis without a database — hix tools — writing</title>
-  <meta name="description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <meta name="description" content="Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
   <link rel="canonical" href="https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css">
@@ -12,12 +12,12 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="hix tools — writing">
   <meta property="og:title" content="Static SQL migration analysis without a database — hix tools — writing">
-  <meta property="og:description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <meta property="og:description" content="Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
   <meta property="og:url" content="https://hix-pro.github.io/blog/posts/02-migration-guard-static-sql-analysis.html">
   <meta property="og:image" content="https://hix-pro.github.io/blog/covers/02-migration-guard.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Static SQL migration analysis without a database — hix tools — writing">
-  <meta name="twitter:description" content="Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
+  <meta name="twitter:description" content="Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.">
   <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/02-migration-guard.png">
 </head>
 <body>
@@ -40,15 +40,15 @@
   <header class="post-header">
     <p class="eyebrow">Migration Guard · hix tools</p>
     <h1>Static SQL migration analysis without a database</h1>
-    <p class="lede">Migration Guard parses SQL and flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</p>
-    <p class="post-meta">4 min read · sql, postgresql, devops, rust</p>
+    <p class="lede">Migration Guard finds SQL migrations across common frameworks, then flags destructive statements, blocking DDL, and breaking renames statically — no database connection needed.</p>
+    <p class="post-meta">6 min read · sql, postgresql, devops, rust</p>
   </header>
   <article class="prose">
     <p>The most expensive way to learn that your migration locks a table is to run it against production. <code>CREATE INDEX</code> on a large table blocks writes for the duration. <code>ALTER TABLE ... ALTER COLUMN ... TYPE</code> rewrites the table. A missing <code>WHERE</code> on a <code>DELETE</code> is self-explanatory. Every engineer eventually collects one of these scars, and the tools that try to prevent them usually want a database connection — a staging database to dry-run against, which you must keep fresh, seed, and pay for.</p>
-<p><a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> takes a different position: parse the SQL, apply rules, print findings. No connection string, no credentials, no database. It reads migration files the same way the database will — statement by statement — and reasons about them statically. That makes it fast enough to run on every pull request, and safe enough to point at anything.</p>
+<p><a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> takes a different position: find the migrations, parse the SQL, apply rules, print findings. No connection string, no credentials, no database. It reads migration files the same way the database will — statement by statement — and reasons about them statically. That makes it fast enough to run on every pull request, and safe enough to point at anything.</p>
 <h2>What a run looks like</h2>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span>migration-guard<span class="w"> </span>check<span class="w"> </span>examples/risky.sql<span class="w"> </span>--fail-on<span class="w"> </span>risky
-<span class="go">migration-guard 0.3.1  ·  postgres  ·  1 file</span>
+<span class="go">migration-guard 0.4.0  ·  postgres  ·  1 file</span>
 
 <span class="go">examples/risky.sql  (8 statements)</span>
 <span class="go">  risky        MG005  line 2</span>
@@ -85,6 +85,21 @@
 </code></pre></div>
 
 <p>Each finding carries a <code>Why</code> and a <code>Fix</code>. The fixes are the standard operational playbooks — nullable-then-backfill, <code>NOT VALID</code> then <code>VALIDATE CONSTRAINT</code>, expand/contract renames — written out where the person touching the migration will actually see them.</p>
+<h2>Find the migrations before checking them</h2>
+<p>Most projects do not keep migrations in a directory called <code>migrations</code>. Flyway uses <code>db/migration</code> under the resources root, Prisma writes <code>prisma/migrations/&lt;timestamp&gt;/migration.sql</code>, Drizzle emits SQL into <code>drizzle/</code>, and monorepos nest any of these under a package. Requiring every project to spell out the path is friction that leads to the guard being configured wrong or skipped.</p>
+<p>Run <code>migration-guard check</code> with no path and it discovers the usual layouts first:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>migration-guard<span class="w"> </span>discover
+<span class="go">migration-guard 0.4.0  ·  discovery  ·  2 directories, 14 SQL files</span>
+<span class="go">root: .</span>
+
+<span class="go">  Prisma      prisma/migrations  (7 files)</span>
+<span class="go">  Flyway      services/api/src/main/resources/db/migration  (7 files)</span>
+
+<span class="go">Run migration-guard check to analyze these directories.</span>
+</code></pre></div>
+
+<p>Discovery covers Flyway, Liquibase, Prisma, Drizzle, Supabase, and generic <code>migrations</code> / <code>migration</code> / <code>migrate</code> directories, including the common nested monorepo paths. It walks at most ten levels, skips dependency and build directories, and only reports a directory that actually contains a <code>.sql</code> file. <code>discover --format json</code> is available when a script needs the list.</p>
+<p><code>migration-guard check</code> uses the same list when no path is supplied, so the CI example below can drop its path entirely. If discovery is wrong for your layout, <code>migration-guard check path/to/sql</code> still works, and <code>check --root services/api</code> discovers from a subdirectory. When nothing is found, <code>check</code> exits <code>1</code> with a message instead of reporting a clean scan of zero files.</p>
 <h2>The rules</h2>
 <p>Thirteen rules, three severities. <code>destructive</code> is data loss or unbounded locking: <code>DROP TABLE</code>, <code>TRUNCATE</code>, <code>ALTER TABLE ... DROP COLUMN</code> (MG001), <code>DELETE</code> or <code>UPDATE</code> without a <code>WHERE</code> (MG002, MG003). <code>risky</code> is likely downtime: column type changes (MG004), <code>NOT NULL</code> without a <code>DEFAULT</code> (MG005, MG006), PostgreSQL index builds without <code>CONCURRENTLY</code> (MG007, MG008), foreign keys validated in-place (MG009), <code>VACUUM FULL</code> and <code>CLUSTER</code> (MG012). <code>warning</code> is "works, but check intent": renames that break clients (MG010), <code>CONCURRENTLY</code> inside a transaction block where it will simply fail at execution time (MG011), and <code>DO</code> blocks or statement types outside the known rule set (MG013).</p>
 <p>Dialect awareness keeps the advice honest. The PostgreSQL-only rules — concurrency, <code>NOT VALID</code>, <code>CLUSTER</code> — do not fire for MySQL, SQLite, or <code>--dialect generic</code>, so you never get told to add <code>CONCURRENTLY</code> to a MySQL index. Meanwhile MySQL's <code>MODIFY COLUMN</code> type changes are caught by MG004's dialect-specific variant. Statement splitting handles the nasty parts — dollar-quoted bodies, nested block comments, MySQL backticks — so a semicolon inside a string does not fabricate a statement boundary.</p>
@@ -100,13 +115,12 @@
 <span class="w">    </span><span class="nt">runs-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ubuntu-latest</span>
 <span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/migration-guard@v0.3.1</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/migration-guard@v0.4.0</span>
 <span class="w">        </span><span class="nt">with</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">paths</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">migrations</span>
 <span class="w">          </span><span class="nt">fail-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">destructive</span>
 </code></pre></div>
 
-<p>The <code>paths:</code> filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action fetches a prebuilt binary and falls back to compiling if needed.</p>
+<p>The <code>on.pull_request.paths</code> filter is doing real work here: the job only runs when a migration changed, so the guard costs nothing on ordinary pull requests. The action discovers migration directories by default; set <code>paths: .</code> to scan every <code>.sql</code> file, or pin a directory. It fetches a prebuilt binary and falls back to compiling if needed.</p>
 <h2>Run it with the suite</h2>
 <p>The CLI tools share a runner. <a href="https://github.com/hix-pro/hix"><code>hix</code></a> looks for the tools installed on <code>PATH</code>, applies a check plan, and prints one table with one exit code:</p>
 <div class="highlight"><pre><span></span><code>pipx<span class="w"> </span>install<span class="w"> </span>git+https://github.com/hix-pro/hix.git
@@ -115,7 +129,7 @@ hix<span class="w"> </span>check
 
 <p>It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a <code>.hix.toml</code> when you want the plan to be explicit.</p>
 <h2>What it will not do</h2>
-<p>Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a <code>CREATE INDEX</code> that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether <code>CONCURRENTLY</code> will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.</p>
+<p>Static analysis cannot see your data volumes, your statement timeouts, or your replication topology — a <code>CREATE INDEX</code> that takes two seconds on a staging table takes twenty minutes on production, and no parser knows that. It does not connect to anything, so it cannot check whether <code>CONCURRENTLY</code> will actually succeed on your replica set, and it does not understand stored procedures beyond flagging them (MG013) as a signal to look manually. MySQL support covers the shared rule set plus dialect variants; it is not a MySQL-specific linter. Discovery is heuristic — Ruby, Python, and JavaScript migration files are not SQL and are not analyzed, and a custom SQL location needs an explicit path. What it does guarantee: every rule has unit tests, exit codes and dialect behavior have integration tests against committed fixtures, and nothing about your schema ever leaves the machine.</p>
 <p>Migration Guard is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums.</p>
 <p>It is part of the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If your pre-production checklist also includes environment drift, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> covers it; if you consume third-party APIs, <a href="https://github.com/hix-pro/api-watch">API Watch</a> catches breaking contract changes before they reach your code; if you review Terraform, <a href="https://github.com/hix-pro/planguard">PlanGuard</a> reads the plan before apply.</p>
   </article>
