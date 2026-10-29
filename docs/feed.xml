@@ -11,7 +11,7 @@
       <title>16 things to check in your GitHub Actions workflows</title>
       <link>https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html</link>
       <guid isPermaLink="true">https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html</guid>
-      <description>ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, and a 16-rule security review.</description>
+      <description>ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.</description>
       <category>ActionLens</category>
       <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
     </item>

@@ -1,7 +1,7 @@
 ---
 title: 16 things to check in your GitHub Actions workflows
 published: false
-description: ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, and a 16-rule security review.
+description: ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.
 tags: github, ci, security, devops
 series: hix tools — local-first dev tools
 cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/04-actionlens.png
@@ -58,6 +58,21 @@ strategy:
 
 That is five job instances: six combinations minus one exclusion, with the `include` entry merged into an existing combination. Include entries that cannot merge add a job. Expression-driven matrices like `${{ fromJSON(...) }}` are marked **dynamic** and counted as one-or-more — never as a made-up exact number. The run footprint builds on this: `job instances × assumed minutes × assumed price`, with editable defaults (5 minutes, $0.008/minute). It is a planning estimate, not a bill, and public-repo runners are free anyway.
 
+## Comparing two revisions
+
+Most workflow incidents are a small diff, not a new file. Someone adds `pull_request_target` to an existing workflow, widens `permissions` from `contents: read` to `write-all`, or moves a job to a self-hosted runner. Reviewing the proposed file in isolation means holding the old one in your head.
+
+**Compare** in ActionLens parses both revisions with the same parser and runs the same 16 rules against each, then shows the delta:
+
+- Jobs added, removed, and changed, down to fields: `runs-on`, `needs`, timeout, permissions, matrix dimensions, `env`, `with`, and `continue-on-error`.
+- Workflow-level changes to triggers, schedules, concurrency, permissions, and environment.
+- Steps added or removed, plus changed step properties.
+- Findings introduced, resolved, and re-graded. A warning that becomes critical is called out as a severity change instead of looking like the same finding.
+
+`run:` bodies are compared but never rendered: a script change appears as `script → script changed (hidden)`. Secret-looking `env` and `with` values are redacted in the comparison, so a token change shows as `•••• (hidden)` rather than printing the credential onto a shared screen. **Swap sides** reverses the direction, and either side can be reset to the workflow currently in the editor.
+
+The same caveat applies as everywhere else in the tool: this is static review. The comparison tells you which risks changed, not whether the new workflow is safe, and it cannot resolve expressions or evaluate `if:` conditions.
+
 ## Try it on the bad example
 
 The app ships with three samples, and the default one is deliberately awful: `pull_request_target`, `write-all`, a fork checkout, script injection, and a literal token in one short file. It fires nearly every critical rule at once, which makes it a decent tour. Two other samples — a real-shaped release pipeline with a scoped matrix, and a nightly bot with `workflow_run`, a self-hosted runner, and `secrets: inherit` — cover the warning-tier rules.
@@ -66,7 +81,7 @@ Exports cover Mermaid (README diagrams), Markdown (PR descriptions), SVG/PNG (sl
 
 ## What it will not do
 
-Static review only: it does not run workflows, resolve expressions, evaluate `if:` conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, footprint estimator, exporters) is pure functions with 52 unit tests; the UI only handles state.
+Static review only: it does not run workflows, resolve expressions, evaluate `if:` conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, diff engine, footprint estimator, exporters) is pure functions with 70 unit tests; the UI only handles state.
 
 ActionLens is MIT-licensed and runs entirely client-side. Run it locally with `npm install && npm run dev`, or use the hosted demo — same code, no install.
 
