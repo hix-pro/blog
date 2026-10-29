@@ -35,6 +35,15 @@ $EDITOR .env            # TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
 `install.sh` checks prerequisites, generates systemd user units from repo templates (any checkout location works, spaces included), and starts the service. It is safe to re-run after an upgrade and never overwrites your `.env` or state. The bridge warns at startup if your `.env` is group- or world-readable. Send `/doctor` and it reports the server, session, policy, event stream, permission watcher, and scheduler in one message — every subsystem answers, so misconfiguration is a diagnosis rather than an evening. On start the bridge also publishes its command list to Telegram, so every `/` autocompletes with a description and a persistent main menu (Status · Sessions · New · Abort · Help) attaches to the chat.
 
+If you would rather not install Python and systemd units, the bridge also ships as a container image for `linux/amd64` and `linux/arm64`:
+
+```bash
+export PROJECT_DIR="$HOME/projects"   # absolute path on the host
+docker compose up -d
+```
+
+The image packages the bridge, not the agent: the OpenCode server stays on the host, and the container reaches it over HTTP. Sessions and schedules live in a `/data` volume, the process runs as UID 10001, and the [Docker guide](https://github.com/hix-pro/opencode-telegram/blob/master/docs/DOCKER.md) covers host networking, the macOS/Windows path, and why the container is not a sandbox.
+
 ## The testing lesson worth stealing
 
 Here is the bug that shaped the project's test suite. The original hermetic suite faked the OpenCode HTTP API — and everything was green. It was also wrong: the fake ignored a query parameter, and the bridge worked flawlessly against the fake and not at all against the real server. Green tests, broken product, because the tests validated the mock's idea of the protocol instead of the protocol. The fix ships in the repo: a **live** suite, opt-in via `pytest -m live`, that talks to a real OpenCode server — creates a throwaway session in a temporary directory, exercises prompt, streaming, shell, filesystem, concurrency, and abort behavior, then deletes the session. Hermetic tests still cover the logic; the live suite exists precisely for the assumptions hermetic tests cannot check. If you build against someone else's HTTP API, build the second suite too.
