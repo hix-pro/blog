@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>16 things to check in your GitHub Actions workflows — hix tools — writing</title>
-  <meta name="description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.">
+  <meta name="description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a base-to-head pull request diff.">
   <link rel="canonical" href="https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css">
@@ -12,12 +12,12 @@
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="hix tools — writing">
   <meta property="og:title" content="16 things to check in your GitHub Actions workflows — hix tools — writing">
-  <meta property="og:description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.">
+  <meta property="og:description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a base-to-head pull request diff.">
   <meta property="og:url" content="https://hix-pro.github.io/blog/posts/04-action-lens-16-workflow-checks.html">
   <meta property="og:image" content="https://hix-pro.github.io/blog/covers/04-actionlens.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="16 things to check in your GitHub Actions workflows — hix tools — writing">
-  <meta name="twitter:description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.">
+  <meta name="twitter:description" content="ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a base-to-head pull request diff.">
   <meta name="twitter:image" content="https://hix-pro.github.io/blog/covers/04-actionlens.png">
 </head>
 <body>
@@ -40,12 +40,12 @@
   <header class="post-header">
     <p class="eyebrow">ActionLens · hix tools</p>
     <h1>16 things to check in your GitHub Actions workflows</h1>
-    <p class="lede">ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.</p>
-    <p class="post-meta">6 min read · github, ci, security, devops</p>
+    <p class="lede">ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a base-to-head pull request diff.</p>
+    <p class="post-meta">7 min read · github, ci, security, devops</p>
   </header>
   <article class="prose">
     <p>A GitHub Actions workflow file is deceptively small, which is exactly the problem. <code>needs:</code> hides the dependency order. <code>strategy.matrix</code> can turn three jobs into eighteen without anything looking wrong. <code>permissions:</code> is missing from most workflows, which means every job inherits whatever the repository default is. And a single <code>${{ github.event.pull_request.title }}</code> interpolated inside <code>run:</code> hands a pull request author a shell in your CI — with your secrets one <code>curl</code> away.</p>
-<p>You can learn all of this the hard way, or you can paste the workflow into <a href="https://github.com/hix-pro/action-lens">ActionLens</a> and read it off a screen. ActionLens is a browser tool: load a workflow, get a job graph, the real matrix size, token permissions, and a 16-rule security and correctness review. No backend, no GitHub token, no upload — the YAML never leaves the tab. There is a live demo at <a href="https://hix-pro.github.io/action-lens/">https://hix-pro.github.io/action-lens/</a>.</p>
+<p>You can learn all of this the hard way, or you can paste the workflow into <a href="https://hix-pro.github.io/action-lens/">ActionLens</a> and read it off a screen. ActionLens is a browser tool: paste a workflow, load one from a public GitHub repository, or open the workflow changes in a pull request. You get a job graph, the real matrix size, token permissions, and a 16-rule security and correctness review. No backend, no token, no upload — the YAML is parsed in the tab. There is a live demo at <a href="https://hix-pro.github.io/action-lens/">https://hix-pro.github.io/action-lens/</a>.</p>
 <h2>The checklist</h2>
 <p>Here is the full rule set, grouped by what it protects. Treat it as a review checklist even if you never run the tool.</p>
 <p><strong>Paths to a compromised CI run (critical):</strong></p>
@@ -97,12 +97,13 @@
 <li>Findings introduced, resolved, and re-graded. A warning that becomes critical is called out as a severity change instead of looking like the same finding.</li>
 </ul>
 <p><code>run:</code> bodies are compared but never rendered: a script change appears as <code>script → script changed (hidden)</code>. Secret-looking <code>env</code> and <code>with</code> values are redacted in the comparison, so a token change shows as <code>•••• (hidden)</code> rather than printing the credential onto a shared screen. <strong>Swap sides</strong> reverses the direction, and either side can be reset to the workflow currently in the editor.</p>
+<p>You do not have to copy the two files by hand. Click <strong>GitHub</strong> and enter <code>owner/repo#123</code> or a pull request URL. ActionLens lists the workflow files the PR changes and opens modified or renamed files in Compare: the <strong>before</strong> side is the pull request merge base, not the current base-branch tip, and the <strong>after</strong> side is the PR head. A workflow added by the PR opens at head; a deleted one is marked and cannot be opened. This uses GitHub's public API directly from the browser, with no token and no account. Public repositories only, and anonymous API access is limited to 60 requests per hour.</p>
 <p>The same caveat applies as everywhere else in the tool: this is static review. The comparison tells you which risks changed, not whether the new workflow is safe, and it cannot resolve expressions or evaluate <code>if:</code> conditions.</p>
 <h2>Try it on the bad example</h2>
 <p>The app ships with three samples, and the default one is deliberately awful: <code>pull_request_target</code>, <code>write-all</code>, a fork checkout, script injection, and a literal token in one short file. It fires nearly every critical rule at once, which makes it a decent tour. Two other samples — a real-shaped release pipeline with a scoped matrix, and a nightly bot with <code>workflow_run</code>, a self-hosted runner, and <code>secrets: inherit</code> — cover the warning-tier rules.</p>
 <p>Exports cover Mermaid (README diagrams), Markdown (PR descriptions), SVG/PNG (slides and issues), and JSON (scripts). Reports contain configuration and findings only — <code>run:</code> script bodies and environment values are deliberately excluded, so a report is safe to paste without copying an injection payload or a secret.</p>
 <h2>What it will not do</h2>
-<p>Static review only: it does not run workflows, resolve expressions, evaluate <code>if:</code> conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, diff engine, footprint estimator, exporters) is pure functions with 70 unit tests; the UI only handles state.</p>
+<p>Static review only: it does not run workflows, resolve expressions, evaluate <code>if:</code> conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, diff engine, GitHub loader, footprint estimator, exporters) is pure functions with 90 unit tests; the UI only handles state.</p>
 <p>ActionLens is MIT-licensed and runs entirely client-side. Run it locally with <code>npm install &amp;&amp; npm run dev</code>, or use the hosted demo — same code, no install.</p>
 <p>It is one of ten tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. If you are hardening CI, <a href="https://github.com/hix-pro/env-audit">EnvAudit</a> catches environment drift and leaked secrets in the repo itself, <a href="https://github.com/hix-pro/api-watch">API Watch</a> keeps third-party API contracts from breaking your build, and <a href="https://github.com/hix-pro/planguard">PlanGuard</a> reviews the infrastructure plan before apply.</p>
   </article>

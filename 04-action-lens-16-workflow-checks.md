@@ -1,7 +1,7 @@
 ---
 title: 16 things to check in your GitHub Actions workflows
 published: false
-description: ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a diff of two revisions.
+description: ActionLens turns any GitHub Actions YAML into a job graph, real matrix size, token permissions, a 16-rule security review, and a base-to-head pull request diff.
 tags: github, ci, security, devops
 series: hix tools — local-first dev tools
 cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/04-actionlens.png
@@ -9,7 +9,7 @@ cover_image: https://raw.githubusercontent.com/hix-pro/blog/main/covers/04-actio
 
 A GitHub Actions workflow file is deceptively small, which is exactly the problem. `needs:` hides the dependency order. `strategy.matrix` can turn three jobs into eighteen without anything looking wrong. `permissions:` is missing from most workflows, which means every job inherits whatever the repository default is. And a single `${{ github.event.pull_request.title }}` interpolated inside `run:` hands a pull request author a shell in your CI — with your secrets one `curl` away.
 
-You can learn all of this the hard way, or you can paste the workflow into [ActionLens](https://github.com/hix-pro/action-lens) and read it off a screen. ActionLens is a browser tool: load a workflow, get a job graph, the real matrix size, token permissions, and a 16-rule security and correctness review. No backend, no GitHub token, no upload — the YAML never leaves the tab. There is a live demo at <https://hix-pro.github.io/action-lens/>.
+You can learn all of this the hard way, or you can paste the workflow into [ActionLens](https://hix-pro.github.io/action-lens/) and read it off a screen. ActionLens is a browser tool: paste a workflow, load one from a public GitHub repository, or open the workflow changes in a pull request. You get a job graph, the real matrix size, token permissions, and a 16-rule security and correctness review. No backend, no token, no upload — the YAML is parsed in the tab. There is a live demo at <https://hix-pro.github.io/action-lens/>.
 
 ## The checklist
 
@@ -71,6 +71,8 @@ Most workflow incidents are a small diff, not a new file. Someone adds `pull_req
 
 `run:` bodies are compared but never rendered: a script change appears as `script → script changed (hidden)`. Secret-looking `env` and `with` values are redacted in the comparison, so a token change shows as `•••• (hidden)` rather than printing the credential onto a shared screen. **Swap sides** reverses the direction, and either side can be reset to the workflow currently in the editor.
 
+You do not have to copy the two files by hand. Click **GitHub** and enter `owner/repo#123` or a pull request URL. ActionLens lists the workflow files the PR changes and opens modified or renamed files in Compare: the **before** side is the pull request merge base, not the current base-branch tip, and the **after** side is the PR head. A workflow added by the PR opens at head; a deleted one is marked and cannot be opened. This uses GitHub's public API directly from the browser, with no token and no account. Public repositories only, and anonymous API access is limited to 60 requests per hour.
+
 The same caveat applies as everywhere else in the tool: this is static review. The comparison tells you which risks changed, not whether the new workflow is safe, and it cannot resolve expressions or evaluate `if:` conditions.
 
 ## Try it on the bad example
@@ -81,7 +83,7 @@ Exports cover Mermaid (README diagrams), Markdown (PR descriptions), SVG/PNG (sl
 
 ## What it will not do
 
-Static review only: it does not run workflows, resolve expressions, evaluate `if:` conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, diff engine, footprint estimator, exporters) is pure functions with 70 unit tests; the UI only handles state.
+Static review only: it does not run workflows, resolve expressions, evaluate `if:` conditions, or inspect action internals. A clean review means these 16 rules found nothing — not that the workflow is safe. Dynamic matrices are unknowable by design and marked as such. Secret detection is heuristic; a secret stored under an unrelated key will be missed. The engine (parser, matrix calculator, 16-rule analyzer, diff engine, GitHub loader, footprint estimator, exporters) is pure functions with 90 unit tests; the UI only handles state.
 
 ActionLens is MIT-licensed and runs entirely client-side. Run it locally with `npm install && npm run dev`, or use the hosted demo — same code, no install.
 
