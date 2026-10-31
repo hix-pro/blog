@@ -50,7 +50,7 @@
 <p>The repo ships a deliberately broken fixture project, so the output is reproducible in ten seconds:</p>
 <div class="highlight"><pre><span></span><code><span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>examples/fixture-project
 <span class="gp">$ </span>envaudit<span class="w"> </span>scan<span class="w"> </span>.
-<span class="go">EnvAudit · 0.4.0</span>
+<span class="go">EnvAudit · 0.5.0</span>
 <span class="go">Scanned 7 files under .</span>
 
 <span class="go">critical (1)</span>
@@ -84,7 +84,8 @@
 
 <p>Every finding names the file and line, explains why it is a finding, and proposes the fix. The default scan is read-only; an explicit <code>--fix</code> can close the documentation gaps without guessing values, as described below.</p>
 <h2>How it decides</h2>
-<p>EnvAudit cross-references three sources: declarations (<code>.env</code>, <code>.env.example</code>, Compose <code>environment:</code> maps, workflow <code>env:</code> blocks), usages (<code>process.env.X</code>, <code>os.Getenv</code>, <code>std::env::var</code> and friends in scanned source files), and <code>.gitignore</code> coverage. A variable that is used but declared nowhere is <code>missing</code>. One declared in a real env file but absent from the example file is <code>undocumented</code>. The inverse is <code>unused</code>. A secret-shaped value in a file your <code>.gitignore</code> fails to cover is <code>critical</code>, because that is the "one bad <code>git push</code> away from leaking" case.</p>
+<p>EnvAudit cross-references three sources: declarations (<code>.env</code>, <code>.env.example</code>, Compose <code>environment:</code> maps, workflow <code>env:</code> blocks), usages (<code>process.env.X</code>, <code>os.environ["X"]</code>, <code>os.Getenv</code>, <code>std::env::var</code> and friends in scanned source files), and <code>.gitignore</code> coverage. A variable that is used but declared nowhere is <code>missing</code>. One declared in a real env file but absent from the example file is <code>undocumented</code>. The inverse is <code>unused</code>. A secret-shaped value in a file your <code>.gitignore</code> fails to cover is <code>critical</code>, because that is the "one bad <code>git push</code> away from leaking" case.</p>
+<p>As of 0.5.0, JavaScript, TypeScript, TSX, and Python are parsed with tree-sitter rather than regexes. That matters for the <code>unused</code> finding, which is the one most likely to be wrong: a variable mentioned only in a comment or a log string is not a usage, and a destructured read such as <code>const { DATABASE_URL, REDIS_URL: redis } = process.env</code> is. The AST scanner understands optional chaining, TypeScript <code>as</code>/<code>satisfies</code> and non-null wrappers, constant bracket and template keys, and <code>Deno.env.get</code>/<code>os.getenv</code> calls with import aliases. Dynamic keys such as <code>process.env[name]</code> and <code>os.environ[key]</code> are deliberately ignored instead of guessed. Rust, Go, and shell keep the targeted regex scanner, where the access forms are simple and a parser would add weight without improving accuracy.</p>
 <p>By default the tool is a report: it prints findings and exits <code>0</code>. The <code>--fail-on any|missing|secret</code> flag opts into gating: exit <code>2</code> when matching findings exist, exit <code>1</code> on scan errors like malformed dotenv lines. Report-only by default is deliberate — you can point it at years of accumulated legacy code on day one, read the report, and only wire CI to fail once you have decided what the baseline is. <code>--json</code> emits a stable, versioned document (<code>schema_version: 1</code>, deterministically sorted, secret values never serialized) and <code>--markdown</code> produces a paste-ready pull request comment. Both exist because "the humans can read the terminal output" stops being true the moment you want a bot to react to it.</p>
 <h2>Close the documentation gap without guessing values</h2>
 <p>Most EnvAudit findings are documentation drift, not code bugs. The default scan is still read-only, but an explicit <code>--fix</code> can append the names reported as <code>missing</code> or <code>undocumented</code> to the primary example env file:</p>
@@ -93,7 +94,7 @@
 <span class="go">  + DEPLOY_REGION</span>
 <span class="go">  + LEGACY_SMTP_HOST</span>
 
-<span class="go">EnvAudit · 0.4.0</span>
+<span class="go">EnvAudit · 0.5.0</span>
 <span class="go">...</span>
 </code></pre></div>
 
@@ -101,7 +102,7 @@
 <p><code>--fix</code> is deliberately limited to documentation gaps. Unused entries, duplicates, and secrets still need a human decision — removing an entry can break a dependency that reads it, and rotating a credential cannot be automated from a static scan. <code>--fix</code> also conflicts with <code>--json</code>, <code>--markdown</code>, and <code>--sarif</code>; run those after reviewing the edit.</p>
 <h2>The CI recipe is two steps</h2>
 <div class="highlight"><pre><span></span><code><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v4</span>
-<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/env-audit@v0.4.0</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hix-pro/env-audit@v0.5.0</span>
 <span class="w">  </span><span class="nt">with</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">fail-on</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">any</span>
 </code></pre></div>
@@ -116,7 +117,7 @@ hix<span class="w"> </span>check
 <p>It installs nothing and sends no telemetry. A tool that is missing or needs configuration is reported as skipped, with the command that fixes it; commit a <code>.hix.toml</code> when you want the plan to be explicit.</p>
 <h2>What it will not do</h2>
 <p>It will not invent configuration values, expand environment variables, or rotate secrets. <code>--fix</code> is opt-in and narrow: it appends bare names to one example env file and then re-scans. It never rewrites a real env file, removes an entry, or fills in a value, and it leaves <code>unused</code>, <code>duplicate</code>, and <code>secret</code> findings for a human. Files over 1 MiB, symlinks, <code>node_modules</code>, <code>target</code>, and <code>vendor</code> are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles <code>KEY=VALUE</code> lines with single-line quoting; anything exotic exits <code>1</code> rather than guessing.</p>
-<p>EnvAudit is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.</p>
+<p>EnvAudit is MIT-licensed, needs Rust 1.85+ and a C compiler for the tree-sitter grammars to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.</p>
 <p>It is one of ten tools in the <a href="https://github.com/hix-pro#readme">hix tools</a> suite — local-first, no backend, CI-ready. The siblings cover the rest of the pre-production checklist: <a href="https://github.com/hix-pro/migration-guard">Migration Guard</a> catches dangerous SQL migrations statically, <a href="https://github.com/hix-pro/api-watch">API Watch</a> catches breaking API contract changes, <a href="https://github.com/hix-pro/planguard">PlanGuard</a> reviews Terraform plans before apply, <a href="https://github.com/hix-pro/locklens">LockLens</a> catches lockfile drift, and <a href="https://github.com/hix-pro/action-lens">ActionLens</a> reviews your GitHub Actions workflows before they reach <code>main</code>.</p>
   </article>
   <nav class="post-nav" aria-label="Posts"><a href="05-compose-map-red-flags.html"><span class="label">Previous</span>Docker Compose red flags before you deploy</a><a class="next" href="02-migration-guard-static-sql-analysis.html"><span class="label">Next</span>Static SQL migration analysis without a database</a></nav>

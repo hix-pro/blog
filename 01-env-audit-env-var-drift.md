@@ -18,7 +18,7 @@ The repo ships a deliberately broken fixture project, so the output is reproduci
 ```console
 $ cd examples/fixture-project
 $ envaudit scan .
-EnvAudit · 0.4.0
+EnvAudit · 0.5.0
 Scanned 7 files under .
 
 critical (1)
@@ -54,7 +54,9 @@ Every finding names the file and line, explains why it is a finding, and propose
 
 ## How it decides
 
-EnvAudit cross-references three sources: declarations (`.env`, `.env.example`, Compose `environment:` maps, workflow `env:` blocks), usages (`process.env.X`, `os.Getenv`, `std::env::var` and friends in scanned source files), and `.gitignore` coverage. A variable that is used but declared nowhere is `missing`. One declared in a real env file but absent from the example file is `undocumented`. The inverse is `unused`. A secret-shaped value in a file your `.gitignore` fails to cover is `critical`, because that is the "one bad `git push` away from leaking" case.
+EnvAudit cross-references three sources: declarations (`.env`, `.env.example`, Compose `environment:` maps, workflow `env:` blocks), usages (`process.env.X`, `os.environ["X"]`, `os.Getenv`, `std::env::var` and friends in scanned source files), and `.gitignore` coverage. A variable that is used but declared nowhere is `missing`. One declared in a real env file but absent from the example file is `undocumented`. The inverse is `unused`. A secret-shaped value in a file your `.gitignore` fails to cover is `critical`, because that is the "one bad `git push` away from leaking" case.
+
+As of 0.5.0, JavaScript, TypeScript, TSX, and Python are parsed with tree-sitter rather than regexes. That matters for the `unused` finding, which is the one most likely to be wrong: a variable mentioned only in a comment or a log string is not a usage, and a destructured read such as `const { DATABASE_URL, REDIS_URL: redis } = process.env` is. The AST scanner understands optional chaining, TypeScript `as`/`satisfies` and non-null wrappers, constant bracket and template keys, and `Deno.env.get`/`os.getenv` calls with import aliases. Dynamic keys such as `process.env[name]` and `os.environ[key]` are deliberately ignored instead of guessed. Rust, Go, and shell keep the targeted regex scanner, where the access forms are simple and a parser would add weight without improving accuracy.
 
 By default the tool is a report: it prints findings and exits `0`. The `--fail-on any|missing|secret` flag opts into gating: exit `2` when matching findings exist, exit `1` on scan errors like malformed dotenv lines. Report-only by default is deliberate — you can point it at years of accumulated legacy code on day one, read the report, and only wire CI to fail once you have decided what the baseline is. `--json` emits a stable, versioned document (`schema_version: 1`, deterministically sorted, secret values never serialized) and `--markdown` produces a paste-ready pull request comment. Both exist because "the humans can read the terminal output" stops being true the moment you want a bot to react to it.
 
@@ -68,7 +70,7 @@ updated .env.example (+2 variables)
   + DEPLOY_REGION
   + LEGACY_SMTP_HOST
 
-EnvAudit · 0.4.0
+EnvAudit · 0.5.0
 ...
 ```
 
@@ -80,7 +82,7 @@ It writes names with empty values. It never copies a value, never edits `.env` o
 
 ```yaml
 - uses: actions/checkout@v4
-- uses: hix-pro/env-audit@v0.4.0
+- uses: hix-pro/env-audit@v0.5.0
   with:
     fail-on: any
 ```
@@ -102,6 +104,6 @@ It installs nothing and sends no telemetry. A tool that is missing or needs conf
 
 It will not invent configuration values, expand environment variables, or rotate secrets. `--fix` is opt-in and narrow: it appends bare names to one example env file and then re-scans. It never rewrites a real env file, removes an entry, or fills in a value, and it leaves `unused`, `duplicate`, and `secret` findings for a human. Files over 1 MiB, symlinks, `node_modules`, `target`, and `vendor` are skipped, and monorepos should scan each service directory separately so example files stay scoped correctly. The dotenv parser handles `KEY=VALUE` lines with single-line quoting; anything exotic exits `1` rather than guessing.
 
-EnvAudit is MIT-licensed, needs Rust 1.85+ to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.
+EnvAudit is MIT-licensed, needs Rust 1.85+ and a C compiler for the tree-sitter grammars to build from source, and skips compiling entirely if you prefer: every release ships prebuilt binaries for Linux, macOS (Apple Silicon), and Windows with SHA-256 checksums. The fixture project has committed expected output, so you can see all finding kinds fire in ten seconds.
 
 It is one of ten tools in the [hix tools](https://github.com/hix-pro#readme) suite — local-first, no backend, CI-ready. The siblings cover the rest of the pre-production checklist: [Migration Guard](https://github.com/hix-pro/migration-guard) catches dangerous SQL migrations statically, [API Watch](https://github.com/hix-pro/api-watch) catches breaking API contract changes, [PlanGuard](https://github.com/hix-pro/planguard) reviews Terraform plans before apply, [LockLens](https://github.com/hix-pro/locklens) catches lockfile drift, and [ActionLens](https://github.com/hix-pro/action-lens) reviews your GitHub Actions workflows before they reach `main`.
